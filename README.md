@@ -2,173 +2,177 @@
 
 ## Descripcion
 
-SurgiAuth es un agente de pre-autorizacion quirurgica en tiempo real. Su objetivo es recibir un informe medico digital generado por un hospital y la poliza del paciente registrada por la aseguradora, analizar si el procedimiento esta cubierto, validar requisitos de carencia y emitir una respuesta inmediata.
+SurgiAuth es un agente de pre-autorizacion quirurgica en tiempo real. El objetivo del MVP es recibir un caso quirurgico, consultar la poliza del paciente en Notion, evaluar cobertura, carencia y documentos faltantes, y devolver una respuesta inmediata y explicable.
 
-La salida del sistema debe ser una de estas cuatro:
+Estados de salida contemplados en esta fase:
 
 - `Preaprobado`
 - `Pendiente por documentos`
 - `Rechazado por exclusion`
 - `Revision manual`
 
-La idea del proyecto es resolver el flujo minimo que pide el reto, sin agregar modulos innecesarios en la primera etapa.
-
-## Objetivo del MVP
-
-La primera version debe cumplir exactamente con este flujo:
-
-1. El hospital registra una solicitud quirurgica.
-2. La aseguradora tiene la poliza del paciente cargada en Notion.
-3. El sistema analiza el informe medico.
-4. El sistema consulta la poliza.
-5. El sistema valida cobertura, carencia y documentos requeridos.
-6. El sistema responde de forma instantanea con una preaprobacion o con una solicitud de documentos faltantes.
-
-No se busca en esta fase resolver todos los casos reales del sector salud. Se busca una solucion clara, demostrable y bien delimitada.
-
-## Alcance inicial
-
-El MVP incluira:
-
-- Registro de casos quirurgicos
-- Consulta de polizas desde Notion
-- Extraccion de informacion del informe medico con IA
-- Motor de reglas para decidir cobertura
-- Actualizacion del resultado en Notion
-- Panel simple para visualizar casos y decisiones
-
-No incluira en la primera etapa:
-
-- Integracion con aseguradoras reales
-- OCR avanzado para documentos escaneados complejos
-- Firma electronica
-- Multi-tenant empresarial
-- Sistema completo de auditoria legal
-- Integracion con HIS o ERP hospitalarios reales
-
-## Stack recomendado
-
-La recomendacion para este proyecto es usar `Next.js` con `React` y `TypeScript`.
-
-### Por que Next.js
-
-Este proyecto no necesita solo una interfaz. Necesita tambien backend, integracion con APIs, procesamiento de documentos y un flujo de negocio centralizado. `Next.js` permite resolver todo eso en un solo repositorio y con una sola base tecnica.
-
-Ventajas para este caso:
-
-- Permite construir frontend y backend en el mismo proyecto
-- Facilita crear endpoints para procesar casos
-- Se integra bien con Notion API y OpenAI API
-- Se despliega rapido
-- Escala bien para pasar de MVP a producto
-
-### Tecnologias propuestas
+## Stack elegido
 
 - `Next.js`
 - `React`
 - `TypeScript`
 - `Tailwind CSS`
 - `Notion API`
-- `OpenAI API`
-- `Zod` para validaciones
-- `Vercel` para despliegue del MVP
+- `OpenAI API` como siguiente integracion
 
-## Base de datos: relacional o no relacional
+La base operativa del MVP es `Notion`. A nivel tecnico no se comporta como una base relacional tradicional. Para una version futura mas robusta, la evolucion natural seria `PostgreSQL`.
 
-Para este proyecto hay que separar dos cosas: la base operativa del MVP y la base ideal para una version mas madura.
+## Objetivo del MVP
 
-### En el MVP
+La primera version debe cumplir este flujo:
 
-La base principal operativa sera `Notion`, porque el enunciado pide que el informe medico y la poliza del paciente esten en una base de datos de Notion.
+1. Registrar o leer un caso quirurgico.
+2. Consultar la poliza asociada en Notion.
+3. Extraer informacion util del caso.
+4. Aplicar reglas de cobertura, carencia, exclusiones y documentos requeridos.
+5. Escribir la decision de vuelta en Notion.
+6. Mostrar el resultado en un dashboard.
 
-Desde un punto de vista tecnico, **Notion no es una base de datos relacional tradicional**. Es una base orientada a paginas y propiedades, con relaciones entre registros, pero no funciona como un motor relacional como PostgreSQL o MySQL.
+## Lo que ya se implemento
 
-Entonces, para el MVP:
+En esta rama ya existe una base funcional del proyecto con:
 
-- La fuente operativa principal sera `Notion`
-- El modelo se comporta mas como una solucion semiestructurada o no relacional
-- Se pueden usar relaciones entre bases de Notion, pero no reemplazan una base relacional completa
+- `Next.js + TypeScript + Tailwind`
+- Dashboard inicial en `/dashboard`
+- Endpoint `GET/POST /api/process-case`
+- Endpoint `GET /api/notion/health`
+- Tipos base del dominio
+- Motor de reglas inicial
+- Integracion con Notion
+- Fallback a mocks si Notion no esta configurado o falla
 
-### En una version posterior
+## Estructura actual
 
-Si el proyecto crece y necesita trazabilidad fuerte, auditoria, historico de decisiones, permisos avanzados y mejor rendimiento, lo recomendable es agregar una base `relacional`, idealmente `PostgreSQL`.
+```text
+surgIAuthPD/
+├─ src/
+│  ├─ app/
+│  │  ├─ api/
+│  │  │  ├─ notion/health/route.ts
+│  │  │  └─ process-case/route.ts
+│  │  ├─ dashboard/page.tsx
+│  │  ├─ layout.tsx
+│  │  └─ page.tsx
+│  ├─ components/
+│  │  ├─ case-card.tsx
+│  │  └─ status-badge.tsx
+│  ├─ lib/
+│  │  ├─ case-service.ts
+│  │  ├─ extraction.ts
+│  │  ├─ mock-data.ts
+│  │  └─ notion.ts
+│  ├─ rules/
+│  │  └─ coverage.ts
+│  └─ types/
+│     └─ domain.ts
+├─ .env.example
+├─ .env.local
+├─ package.json
+└─ README.md
+```
 
-### Decision recomendada
+## Motor de reglas actual
 
-Para cumplir el reto al pie de la letra:
+La decision final vive en codigo, no en texto generado libremente por IA.
 
-- `Notion` en el MVP
-- `PostgreSQL` como evolucion natural cuando el proyecto madure
+Reglas actualmente implementadas:
 
-## Arquitectura funcional
+- Validacion de existencia de poliza
+- Validacion de confianza minima de extraccion
+- Validacion de documentos faltantes
+- Validacion de exclusiones
+- Validacion de cobertura
+- Validacion de carencia usando `policyStartDate` y `waitingPeriodDays`
 
-El sistema se divide en cuatro bloques.
+Escenarios mock ya cubiertos:
 
-### 1. Ingreso del caso
+- Caso cubierto y completo
+- Caso con documentos faltantes
+- Caso rechazado por exclusion
+- Caso que cae en revision manual por carencia
 
-El hospital registra o envia:
+## Configuracion local
 
-- Datos del paciente
-- Diagnostico
-- Procedimiento solicitado
-- Informe medico digital
-- Fecha de solicitud
+Instalar dependencias:
 
-Ese caso se guarda en Notion y queda listo para ser procesado.
+```powershell
+npm.cmd install
+```
 
-### 2. Consulta de poliza
+Levantar el proyecto:
 
-El sistema busca la poliza del paciente en Notion y recupera:
+```powershell
+npm.cmd run dev
+```
 
-- Plan
-- Procedimientos cubiertos
-- Exclusiones
-- Dias de carencia
-- Documentos obligatorios
-- Reglas especiales
+Construccion de prueba:
 
-### 3. Analisis del informe medico
+```powershell
+npm.cmd run build
+```
 
-La IA se usa para leer el informe y extraer informacion util. No debe ser quien decida la aprobacion por si sola.
+Lint:
 
-La IA debe devolver campos estructurados como:
+```powershell
+npm.cmd run lint
+```
 
-- Procedimiento identificado
-- Diagnostico principal
-- Nivel de urgencia
-- Medico tratante
-- Documentos detectados
-- Documentos faltantes
-- Confianza de extraccion
+## Variables de entorno
 
-### 4. Motor de decision
+Archivo `.env.local`:
 
-La decision final debe vivir en codigo, no en texto libre generado por la IA.
+```env
+NOTION_TOKEN=
+NOTION_CASES_DATA_SOURCE_ID=
+NOTION_POLICIES_DATA_SOURCE_ID=
+NOTION_DOCUMENTS_DATA_SOURCE_ID=
+```
 
-El motor evaluara:
+## Configuracion de Notion
 
-- Si la poliza existe
-- Si el procedimiento esta cubierto
-- Si existe una exclusion
-- Si se cumple la carencia
-- Si faltan documentos
-- Si la confianza de extraccion es suficiente
+### Resumen de lo que se hizo
 
-Con eso devolvera un estado final y una justificacion clara.
+Se crearon dos bases de datos en Notion:
 
-## Regla central del proyecto
+- `Casos Quirurgicos`
+- `Polizas`
 
-La IA interpreta y estructura informacion. La logica del negocio decide.
+Luego se creo una conexion interna llamada `SurgiAuth`, se le dio acceso a ambas bases y se configuraron los IDs en `.env.local`.
 
-Esto es importante por tres razones:
+### Nota importante sobre los IDs
 
-- Reduce errores
-- Hace el sistema auditable
-- Permite explicar por que un caso fue aprobado o rechazado
+En las URLs de Notion, el primer bloque largo corresponde al `database_id`, no siempre al `data_source_id`. El proyecto ya resuelve eso automaticamente.
 
-## Estados del sistema
+Esto significa que en `.env.local` puedes colocar el ID que copias desde la URL de la base, y el backend se encarga de obtener el `data_source_id` real antes de consultar filas.
 
-Se recomienda manejar solo estos estados en la primera version:
+## Paso a paso para crear las bases en Notion
+
+### Base 1: Casos Quirurgicos
+
+Crear una base de datos tipo tabla con estas propiedades exactas:
+
+- `case_id` -> `Title`
+- `paciente` -> `Text`
+- `aseguradora` -> `Text`
+- `policy_id` -> `Text`
+- `inicio_poliza` -> `Date`
+- `diagnostico` -> `Text`
+- `procedimiento_solicitado` -> `Text`
+- `fecha_solicitud` -> `Date`
+- `documentos_presentados` -> `Multi-select`
+- `urgente` -> `Checkbox`
+- `estado` -> `Status`
+- `resultado_final` -> `Text`
+- `motivo_decision` -> `Text`
+- `documentos_faltantes` -> `Multi-select`
+- `confianza_extraccion` -> `Number`
+
+Opciones recomendadas para `estado`:
 
 - `Nuevo`
 - `En analisis`
@@ -177,294 +181,241 @@ Se recomienda manejar solo estos estados en la primera version:
 - `Rechazado por exclusion`
 - `Revision manual`
 
-Con esto es suficiente para una demo funcional y entendible.
+### Base 2: Polizas
 
-## Logica minima de negocio
+Crear una base de datos tipo tabla con estas propiedades exactas:
 
-La logica inicial puede ser esta:
+- `policy_id` -> `Title`
+- `aseguradora` -> `Text`
+- `procedimientos_cubiertos` -> `Multi-select`
+- `exclusiones` -> `Multi-select`
+- `dias_carencia` -> `Number`
+- `documentos_requeridos` -> `Multi-select`
 
-- Si no existe poliza asociada, el caso pasa a `Revision manual`
-- Si falta el informe medico o un documento obligatorio, el caso pasa a `Pendiente por documentos`
-- Si el procedimiento esta en exclusiones, el caso pasa a `Rechazado por exclusion`
-- Si no cumple dias de carencia, el caso pasa a `Revision manual` o `Rechazado`, segun la regla definida
-- Si el procedimiento esta cubierto y cumple reglas, el caso pasa a `Preaprobado`
-- Si la IA no puede extraer con confianza suficiente, el caso pasa a `Revision manual`
+## Prompts usados para crear las bases con Notion AI
 
-## Estructura recomendada en Notion
+### Prompt para Casos Quirurgicos
 
-Se proponen tres bases principales.
+```text
+Crea una base de datos tipo tabla llamada Casos Quirurgicos para un sistema de preautorizacion quirurgica.
 
-### 1. Casos Quirurgicos
+Necesito estas columnas exactas y con estos tipos:
 
-Campos sugeridos:
+- case_id: titulo
+- paciente: texto
+- aseguradora: texto
+- policy_id: texto
+- inicio_poliza: fecha
+- diagnostico: texto
+- procedimiento_solicitado: texto
+- fecha_solicitud: fecha
+- documentos_presentados: seleccion multiple
+- urgente: casilla de verificacion
+- estado: estado
+- resultado_final: texto
+- motivo_decision: texto
+- documentos_faltantes: seleccion multiple
+- confianza_extraccion: numero
 
-- `case_id`
-- `paciente`
-- `documento_identidad`
-- `aseguradora`
-- `policy_id`
-- `diagnostico`
-- `procedimiento_solicitado`
-- `fecha_solicitud`
+En la propiedad estado crea estas opciones exactas:
+Nuevo
+En analisis
+Preaprobado
+Pendiente por documentos
+Rechazado por exclusion
+Revision manual
+
+No agregues columnas extra. No cambies los nombres. Usa exactamente esos nombres.
+```
+
+### Prompt para Polizas
+
+```text
+Crea una base de datos tipo tabla llamada Polizas para un sistema de preautorizacion quirurgica.
+
+Necesito estas columnas exactas y con estos tipos:
+
+- policy_id: titulo
+- aseguradora: texto
+- procedimientos_cubiertos: seleccion multiple
+- exclusiones: seleccion multiple
+- dias_carencia: numero
+- documentos_requeridos: seleccion multiple
+
+No agregues columnas extra. No cambies los nombres. Usa exactamente esos nombres.
+```
+
+## Conexion interna en Notion
+
+### Pasos realizados
+
+1. Abrir el panel de conexiones internas de Notion.
+2. Crear una conexion interna llamada `SurgiAuth`.
+3. Copiar el token de acceso de la conexion.
+4. Dar acceso a `Casos Quirurgicos` y `Polizas` desde la pestaña de acceso al contenido.
+
+### Seguridad
+
+Si el token se expone en el chat, en capturas o en commits, debe regenerarse inmediatamente.
+
+## Como obtener los IDs desde Notion
+
+Abrir la base en Notion y copiar la URL.
+
+Ejemplo:
+
+```text
+https://www.notion.so/35e1c005c8cc8090bea1cd5327817512?v=35e1c005c8cc801e97f8000c473808df&source=copy_link
+```
+
+El valor que se usa en `.env.local` es el primer bloque largo:
+
+```env
+NOTION_CASES_DATA_SOURCE_ID=35e1c005c8cc8090bea1cd5327817512
+```
+
+El valor `v=` corresponde a la vista, no a la base.
+
+## Comprobacion de conexion con Notion
+
+Una vez configurado `.env.local`, se puede probar:
+
+```text
+http://localhost:3000/api/notion/health
+```
+
+Respuesta esperada cuando todo esta bien:
+
+```json
+{
+  "ok": true,
+  "mode": "notion",
+  "config": {
+    "configured": true,
+    "hasToken": true,
+    "hasCasesDataSource": true,
+    "hasPoliciesDataSource": true,
+    "hasDocumentsDataSource": false
+  },
+  "message": "La conexion con Notion esta lista.",
+  "counts": {
+    "cases": 4,
+    "policies": 4
+  }
+}
+```
+
+## Problema que aparecio y como se resolvio
+
+### Problema
+
+Al consultar `Polizas`, Notion devolvia `object_not_found` aunque el ID se habia copiado desde la URL.
+
+### Causa
+
+Notion separa `database_id` y `data_source_id`. La URL entrega el `database_id`, pero el query de filas usa `data_source_id`.
+
+### Solucion aplicada
+
+Se actualizo [src/lib/notion.ts](C:\Users\ACER NITRO V15\Documents\GitHub\surgIAuthPD\src\lib\notion.ts) para:
+
+- recibir el ID de la URL
+- consultar la base con `notion.databases.retrieve`
+- extraer el `data_source_id`
+- ejecutar luego `notion.dataSources.query`
+
+Con eso ya no es necesario buscar manualmente el `data_source_id` en la interfaz de Notion.
+
+## Endpoints disponibles
+
+### `GET /api/notion/health`
+
+Sirve para validar si la conexion con Notion esta lista.
+
+### `GET /api/process-case`
+
+Devuelve un mensaje de ayuda y un ejemplo de payload.
+
+### `POST /api/process-case`
+
+Procesa un caso.
+
+Payload:
+
+```json
+{
+  "caseId": "CQ-2026-001"
+}
+```
+
+Lo que hace:
+
+1. busca el caso en Notion
+2. busca la poliza asociada
+3. ejecuta la extraccion inicial
+4. aplica reglas de negocio
+5. actualiza la decision en la pagina del caso
+
+## Campos que actualiza en Notion
+
+Cuando se procesa un caso, se actualizan estos campos de `Casos Quirurgicos`:
+
 - `estado`
 - `resultado_final`
 - `motivo_decision`
 - `documentos_faltantes`
 - `confianza_extraccion`
 
-### 2. Polizas
+## Flujo de prueba recomendado
 
-Campos sugeridos:
+1. Levantar la app con `npm.cmd run dev`
+2. Probar `GET /api/notion/health`
+3. Abrir `/dashboard`
+4. Ejecutar `POST /api/process-case` con un `case_id` real
+5. Verificar que la decision se escriba en Notion
 
-- `policy_id`
-- `aseguradora`
-- `plan`
-- `procedimientos_cubiertos`
-- `exclusiones`
-- `dias_carencia`
-- `documentos_requeridos`
-- `reglas_especiales`
+## Progreso real del desarrollo
 
-### 3. Documentos
+### Etapa 1
 
-Campos sugeridos:
+- Se creo el `README` inicial del proyecto
+- Se definio el stack principal
+- Se crearon ramas separadas para trabajo del equipo
 
-- `document_id`
-- `case_id`
-- `tipo_documento`
-- `archivo_url`
-- `estado_documento`
-- `texto_extraido`
+### Etapa 2
 
-## Flujo tecnico del sistema
+- Se monto la base de `Next.js`
+- Se creo la estructura del proyecto
+- Se implemento el dashboard inicial
+- Se agrego el endpoint base para procesamiento
 
-1. Un usuario carga o registra un caso quirurgico.
-2. El sistema crea el registro en Notion.
-3. El backend toma el caso para procesarlo.
-4. Se consulta la poliza del paciente en Notion.
-5. Se envia el informe medico a OpenAI para extraer datos estructurados.
-6. El motor de reglas evalua cobertura, carencia y faltantes.
-7. El resultado se escribe de vuelta en Notion.
-8. El panel muestra el estado final del caso.
+### Etapa 3
 
-## Arquitectura tecnica recomendada
+- Se implementaron tipos de dominio
+- Se agregaron mocks
+- Se construyo el motor de reglas
+- Se validaron cobertura, exclusiones, faltantes y carencia
 
-### Frontend
+### Etapa 4
 
-Panel administrativo con estas vistas minimas:
+- Se integro Notion
+- Se agrego `GET /api/notion/health`
+- Se implemento lectura de casos y polizas
+- Se implemento escritura de decisiones en casos
+- Se resolvio el manejo de `database_id` y `data_source_id`
 
-- Lista de casos
-- Detalle de un caso
-- Estado de decision
-- Resultado y motivo
+## Siguiente paso recomendado
 
-### Backend
+El siguiente bloque de trabajo recomendado es:
 
-API interna para:
+1. Probar `POST /api/process-case` con casos reales
+2. Ajustar los datos reales de Notion para que produzcan decisiones consistentes
+3. Reemplazar la extraccion mock por OpenAI
+4. Mejorar la UI del detalle de caso
 
-- Crear casos
-- Procesar casos
-- Consultar polizas
-- Actualizar resultados
-- Recibir eventos desde Notion si luego se usan webhooks
+## Referencias tecnicas
 
-### IA
-
-La IA debe trabajar con salida estructurada para evitar respuestas ambiguas. No se debe usar para devolver un texto largo sin esquema.
-
-### Reglas
-
-Las reglas del negocio deben estar separadas en modulos claros y faciles de probar.
-
-## Estructura sugerida del proyecto
-
-```text
-surgIAuthPD/
-├─ src/
-│  ├─ app/
-│  │  ├─ api/
-│  │  │  ├─ cases/
-│  │  │  ├─ process-case/
-│  │  │  └─ notion/
-│  │  ├─ dashboard/
-│  │  └─ page.tsx
-│  ├─ components/
-│  ├─ lib/
-│  │  ├─ notion.ts
-│  │  ├─ openai.ts
-│  │  └─ validators.ts
-│  ├─ rules/
-│  │  └─ coverage.ts
-│  ├─ types/
-│  └─ utils/
-├─ .env.local
-├─ package.json
-└─ README.md
-```
-
-## Modulos principales
-
-### `lib/notion.ts`
-
-Encargado de:
-
-- Leer casos
-- Leer polizas
-- Crear registros
-- Actualizar decisiones
-
-### `lib/openai.ts`
-
-Encargado de:
-
-- Enviar el informe medico
-- Solicitar extraccion estructurada
-- Devolver JSON validado
-
-### `rules/coverage.ts`
-
-Encargado de:
-
-- Aplicar reglas de cobertura
-- Validar carencia
-- Detectar exclusiones
-- Generar resultado final
-
-### `app/api/process-case`
-
-Encargado de:
-
-- Orquestar todo el flujo
-- Consultar caso
-- Consultar poliza
-- Llamar IA
-- Ejecutar reglas
-- Persistir resultado
-
-## Pantallas minimas del MVP
-
-### Dashboard principal
-
-Debe mostrar:
-
-- Total de casos
-- Casos pendientes
-- Casos preaprobados
-- Casos en revision
-
-### Lista de casos
-
-Debe mostrar:
-
-- Paciente
-- Procedimiento
-- Aseguradora
-- Estado
-- Fecha
-
-### Detalle del caso
-
-Debe mostrar:
-
-- Informe medico resumido
-- Datos extraidos por IA
-- Poliza aplicada
-- Resultado de la evaluacion
-- Motivo de la decision
-
-## Integraciones necesarias
-
-### Notion API
-
-Se usara para:
-
-- Leer y actualizar las bases de datos
-- Guardar casos
-- Consultar polizas
-
-### OpenAI API
-
-Se usara para:
-
-- Interpretar el informe medico
-- Extraer datos clinicos relevantes
-- Generar respuestas estructuradas y consistentes
-
-## Seguridad minima recomendada
-
-Aunque el MVP sea simple, conviene contemplar desde el inicio:
-
-- Variables de entorno para claves
-- No exponer secretos en frontend
-- Registrar decisiones importantes
-- Separar claramente datos del paciente y resultado del analisis
-
-## Roadmap de construccion
-
-### Fase 1. Base del proyecto
-
-- Crear proyecto con Next.js y TypeScript
-- Configurar Tailwind
-- Configurar variables de entorno
-- Preparar estructura de carpetas
-
-### Fase 2. Notion como fuente operativa
-
-- Crear bases en Notion
-- Conectar Notion API
-- Probar lectura y escritura de casos y polizas
-
-### Fase 3. Analisis del informe medico
-
-- Definir esquema de salida
-- Conectar OpenAI API
-- Validar extraccion estructurada
-
-### Fase 4. Motor de reglas
-
-- Implementar reglas de cobertura
-- Implementar validacion de carencia
-- Implementar manejo de documentos faltantes
-
-### Fase 5. Interfaz
-
-- Crear dashboard
-- Crear lista de casos
-- Crear vista de detalle
-
-### Fase 6. Cierre del MVP
-
-- Probar casos simulados
-- Ajustar mensajes
-- Dejar la demo lista para presentar
-
-## Casos de prueba recomendados
-
-Para la primera demo conviene tener al menos estos escenarios:
-
-- Caso cubierto y completo: debe terminar en `Preaprobado`
-- Caso con documento faltante: debe terminar en `Pendiente por documentos`
-- Caso con exclusion: debe terminar en `Rechazado por exclusion`
-- Caso ambiguo o con poca confianza: debe terminar en `Revision manual`
-
-## Criterio de exito
-
-El proyecto estara bien resuelto si logra demostrar lo siguiente:
-
-- Recibe un caso quirurgico
-- Consulta una poliza en Notion
-- Analiza el informe medico con IA
-- Aplica reglas claras
-- Emite una respuesta inmediata y explicable
-
-## Conclusion
-
-La mejor forma de construir SurgiAuth en esta etapa es con una arquitectura simple, demostrable y enfocada. La recomendacion es desarrollar el MVP con `Next.js`, usar `Notion` como base operativa porque asi lo pide el reto, apoyarse en `OpenAI` para interpretar el informe medico y dejar la decision final en un motor de reglas escrito en codigo.
-
-En resumen:
-
-- Frontend y backend con `Next.js`
-- Base operativa en `Notion`
-- IA para extraccion, no para decidir por si sola
-- Reglas de negocio en codigo
-- Alcance controlado y listo para demo
+- [Working with databases](https://developers.notion.com/guides/data-apis/working-with-databases)
+- [Retrieve a database](https://developers.notion.com/reference/retrieve-a-database)
+- [Query a data source](https://developers.notion.com/reference/query-a-data-source)
+- [Internal integrations](https://developers.notion.com/guides/get-started/internal-integrations)
