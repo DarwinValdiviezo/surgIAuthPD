@@ -31,6 +31,16 @@ export interface Policy {
   requiredDocuments: string[];
 }
 
+export interface CaseDocument {
+  notionPageId?: string;
+  documentId: string;
+  caseId: string;
+  documentType: string;
+  fileUrl: string;
+  documentStatus: string;
+  extractedText: string;
+}
+
 export interface ExtractionResult {
   detectedProcedure: string;
   detectedDiagnosis: string;
@@ -58,6 +68,7 @@ export interface DecisionResult {
 export interface CaseEvaluation {
   case: SurgicalCase;
   policy?: Policy;
+  documents: CaseDocument[];
   extraction: ExtractionResult;
   decision: DecisionResult;
 }

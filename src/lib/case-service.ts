@@ -3,10 +3,11 @@ import {
   getNotionConfigStatus,
   isNotionConfigured,
   queryCasesFromNotion,
+  queryDocumentsFromNotion,
   queryPoliciesFromNotion,
   updateCaseDecisionInNotion,
 } from "@/lib/notion";
-import { DecisionResult, Policy, SurgicalCase } from "@/types/domain";
+import { CaseDocument, DecisionResult, Policy, SurgicalCase } from "@/types/domain";
 
 function normalizeIdentifier(value: string): string {
   return value.trim().toLowerCase();
@@ -16,6 +17,7 @@ const CACHE_TTL_MS = 30000;
 
 let casesCache: { expiresAt: number; data: SurgicalCase[] } | null = null;
 let policiesCache: { expiresAt: number; data: Policy[] } | null = null;
+let documentsCache: { expiresAt: number; data: CaseDocument[] } | null = null;
 
 function getValidCacheEntry<T>(entry: { expiresAt: number; data: T } | null): T | null {
   if (!entry) {
@@ -84,6 +86,38 @@ export async function listPolicies(): Promise<Policy[]> {
   }
 }
 
+export async function listDocuments(): Promise<CaseDocument[]> {
+  if (!isNotionConfigured()) {
+    return [];
+  }
+
+  const cachedDocuments = getValidCacheEntry(documentsCache);
+  if (cachedDocuments) {
+    return cachedDocuments;
+  }
+
+  try {
+    const documents = await queryDocumentsFromNotion();
+    documentsCache = {
+      expiresAt: Date.now() + CACHE_TTL_MS,
+      data: documents,
+    };
+    return documents;
+  } catch (error) {
+    console.error("Fallo al consultar documentos en Notion, se devolvera lista vacia.", error);
+    return [];
+  }
+}
+
+export async function findDocumentsByCaseId(caseId: string): Promise<CaseDocument[]> {
+  const documents = await listDocuments();
+  const normalizedCaseId = normalizeIdentifier(caseId);
+
+  return documents.filter(
+    (item) => normalizeIdentifier(item.caseId) === normalizedCaseId,
+  );
+}
+
 export async function findPolicyById(policyId: string): Promise<Policy | undefined> {
   const policies = await listPolicies();
   const normalizedPolicyId = normalizeIdentifier(policyId);
@@ -104,6 +138,7 @@ export async function saveCaseDecision(
   try {
     await updateCaseDecisionInNotion(surgicalCase.notionPageId, decision);
     casesCache = null;
+    documentsCache = null;
     return "notion";
   } catch (error) {
     console.error("Fallo al persistir la decision en Notion.", error);

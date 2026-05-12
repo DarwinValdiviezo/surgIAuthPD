@@ -5,7 +5,7 @@ import type {
   QueryDataSourceResponse,
   UpdatePageParameters,
 } from "@notionhq/client/build/src/api-endpoints";
-import { DecisionResult, Policy, SurgicalCase } from "@/types/domain";
+import { CaseDocument, DecisionResult, Policy, SurgicalCase } from "@/types/domain";
 
 const notionToken = process.env.NOTION_TOKEN;
 const casesDataSourceId = process.env.NOTION_CASES_DATA_SOURCE_ID;
@@ -171,6 +171,16 @@ function getMultiSelect(page: PageObjectResponse, propertyName: string): string[
   return property.multi_select.map((item) => item.name);
 }
 
+function getUrl(page: PageObjectResponse, propertyName: string): string {
+  const property = getProperty(page, propertyName);
+
+  if (!property || property.type !== "url") {
+    return "";
+  }
+
+  return property.url ?? "";
+}
+
 function getStatusName(page: PageObjectResponse, propertyName: string): string {
   const property = getProperty(page, propertyName);
 
@@ -218,6 +228,18 @@ function mapPolicyPage(page: PageObjectResponse): Policy {
   };
 }
 
+function mapDocumentPage(page: PageObjectResponse): CaseDocument {
+  return {
+    notionPageId: page.id,
+    documentId: getTitle(page, "document_id"),
+    caseId: getRichText(page, "case_id"),
+    documentType: getRichText(page, "tipo_documento"),
+    fileUrl: getUrl(page, "archivo_url"),
+    documentStatus: getStatusName(page, "estado_documento") || "Pendiente",
+    extractedText: getRichText(page, "texto_extraido"),
+  };
+}
+
 export async function queryCasesFromNotion(): Promise<SurgicalCase[]> {
   if (!casesDataSourceId) {
     throw new Error("NOTION_CASES_DATA_SOURCE_ID no esta configurado.");
@@ -241,6 +263,15 @@ export async function queryPoliciesFromNotion(): Promise<Policy[]> {
   const response = await queryNotionCollection(policiesDataSourceId);
 
   return response.results.filter(isPageObject).map(mapPolicyPage);
+}
+
+export async function queryDocumentsFromNotion(): Promise<CaseDocument[]> {
+  if (!documentsDataSourceId) {
+    return [];
+  }
+
+  const response = await queryNotionCollection(documentsDataSourceId);
+  return response.results.filter(isPageObject).map(mapDocumentPage);
 }
 
 export async function updateCaseDecisionInNotion(

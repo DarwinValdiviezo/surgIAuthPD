@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   findCaseById,
+  findDocumentsByCaseId,
   findPolicyById,
   getDataSourceMode,
   saveCaseDecision,
@@ -40,7 +41,8 @@ export async function POST(request: NextRequest) {
     }
 
     const policy = await findPolicyById(surgicalCase.policyId);
-    const extraction = await extractCaseDataForMode(surgicalCase, { preferAI: true });
+    const documents = await findDocumentsByCaseId(surgicalCase.caseId);
+    const extraction = await extractCaseDataForMode(surgicalCase, documents, { preferAI: true });
     const decision = evaluateCoverage(surgicalCase, policy, extraction);
     const persistence = await saveCaseDecision(surgicalCase, decision);
 
@@ -49,6 +51,7 @@ export async function POST(request: NextRequest) {
       persistence,
       case: surgicalCase,
       policy,
+      documents,
       extraction,
       decision,
     });

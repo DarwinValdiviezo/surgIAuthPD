@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { ExtractionResult, SurgicalCase } from "@/types/domain";
+import { CaseDocument, ExtractionResult, SurgicalCase } from "@/types/domain";
 
 const geminiApiKey = process.env.GEMINI_API_KEY;
 const geminiModel = "gemini-2.5-flash";
@@ -53,11 +53,28 @@ export function isGeminiConfigured(): boolean {
   return Boolean(geminiApiKey);
 }
 
-function buildExtractionPrompt(surgicalCase: SurgicalCase): string {
+function buildExtractionPrompt(surgicalCase: SurgicalCase, documents: CaseDocument[]): string {
+  const documentsBlock =
+    documents.length > 0
+      ? documents
+          .map(
+            (document) =>
+              [
+                `document_id: ${document.documentId}`,
+                `case_id: ${document.caseId}`,
+                `tipo_documento: ${document.documentType}`,
+                `estado_documento: ${document.documentStatus}`,
+                `texto_extraido: ${document.extractedText || "sin texto"}`,
+              ].join("\n"),
+          )
+          .join("\n\n")
+      : "Sin documentos relacionados disponibles.";
+
   return [
     "Actua como un analista de pre-autorizacion quirurgica.",
     "Debes extraer informacion estructurada del caso clinico entregado.",
     "No inventes datos. Si algo no aparece, devuelve un valor prudente y conservador.",
+    "Si un documento esta marcado como Pendiente o Faltante, consideralo como faltante en tu evaluacion.",
     "La confianza debe estar entre 0 y 1.",
     "",
     "Caso clinico:",
@@ -71,15 +88,21 @@ function buildExtractionPrompt(surgicalCase: SurgicalCase): string {
     `urgente: ${surgicalCase.isUrgent ? "si" : "no"}`,
     `documentos_presentados: ${surgicalCase.submittedDocuments.join(", ") || "ninguno"}`,
     "",
+    "Documentos relacionados:",
+    documentsBlock,
+    "",
     "Devuelve exclusivamente un JSON valido con el esquema solicitado.",
   ].join("\n");
 }
 
-export async function extractCaseDataWithGemini(surgicalCase: SurgicalCase): Promise<ExtractionResult> {
+export async function extractCaseDataWithGemini(
+  surgicalCase: SurgicalCase,
+  documents: CaseDocument[],
+): Promise<ExtractionResult> {
   const client = getGeminiClient();
   const response = await client.models.generateContent({
     model: geminiModel,
-    contents: buildExtractionPrompt(surgicalCase),
+    contents: buildExtractionPrompt(surgicalCase, documents),
     config: {
       responseMimeType: "application/json",
       responseJsonSchema: extractionSchema,

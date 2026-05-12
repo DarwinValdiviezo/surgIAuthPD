@@ -1,0 +1,657 @@
+.page {
+  min-height: 100vh;
+  background: #fdfbf7;
+  color: #1b1c1c;
+}
+
+.shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  display: none;
+  width: 272px;
+  height: 100vh;
+  flex-direction: column;
+  gap: 16px;
+  border-right: 1px solid #c4c6cf;
+  background: #f5f3f3;
+  padding: 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.brandMark {
+  display: flex;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #001f3f 0%, #476083 100%);
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.brandTitle {
+  margin: 0;
+  font-family: var(--font-display), Arial, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #001f3f;
+}
+
+.brandSubtitle {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5f6368;
+}
+
+.newCaseButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 12px;
+  background: #001f3f;
+  color: #ffffff;
+  padding: 14px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 31, 63, 0.18);
+}
+
+.navSection {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.navItem,
+.navItemActive {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+
+.navItem {
+  color: #43474e;
+}
+
+.navItemActive {
+  background: #e1dfdc;
+  color: #1b1c1c;
+}
+
+.navItem:hover,
+.navItemActive:hover {
+  transform: translateX(2px);
+}
+
+.navIcon {
+  display: inline-flex;
+  width: 24px;
+  justify-content: center;
+}
+
+.sidebarFooter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid #c4c6cf;
+  padding-top: 14px;
+}
+
+.main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #c4c6cf;
+  background: rgba(251, 249, 248, 0.92);
+  backdrop-filter: blur(10px);
+  padding: 18px 24px;
+}
+
+.topbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topbarTitle {
+  margin: 0;
+  font-family: var(--font-display), Arial, sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: #001f3f;
+}
+
+.caseBadge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 8px;
+  background: #efeded;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #5f6368;
+}
+
+.topbarActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbarButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #d9dbdf;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #43474e;
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  background: #001f3f;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.content {
+  margin: 0 auto;
+  width: 100%;
+  max-width: 1440px;
+  padding: 32px 24px 48px;
+}
+
+.patientHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.patientMeta {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.patientAvatar {
+  display: flex;
+  width: 88px;
+  height: 88px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  background: #e4e2e2;
+  color: #001f3f;
+  font-family: var(--font-display), Arial, sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.patientName {
+  margin: 0;
+  font-family: var(--font-display), Arial, sans-serif;
+  font-size: 40px;
+  line-height: 1.05;
+  color: #001f3f;
+}
+
+.patientFacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin-top: 10px;
+  font-size: 14px;
+  color: #5f6368;
+}
+
+.statusArea {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.statusNote {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5f6368;
+}
+
+.grid {
+  display: grid;
+  gap: 24px;
+}
+
+.leftColumn,
+.rightColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.card {
+  overflow: hidden;
+  border: 1px solid #e5e1da;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.cardAccentNavy {
+  border-left: 4px solid #000613;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #ece7df;
+  background: #fbf9f8;
+  padding: 20px 24px;
+}
+
+.cardTitle {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display), Arial, sans-serif;
+  font-size: 22px;
+  color: #001f3f;
+}
+
+.cardBody {
+  padding: 24px;
+}
+
+.splitGrid {
+  display: grid;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.fieldLabel {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5f6368;
+}
+
+.fieldValue {
+  display: flex;
+  gap: 10px;
+  border: 1px solid #e5e1da;
+  border-radius: 12px;
+  background: #f9f7f2;
+  padding: 14px;
+}
+
+.fieldCode {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 8px;
+  background: #001f3f;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.fieldText {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #1b1c1c;
+}
+
+.metaBanner {
+  border: 1px solid #d9dbdf;
+  border-radius: 14px;
+  background: #f5f3f3;
+  padding: 16px;
+}
+
+.metaBannerGrid {
+  display: grid;
+  gap: 14px;
+}
+
+.metaBannerItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #1b1c1c;
+}
+
+.policyTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.policyTable th,
+.policyTable td {
+  border-bottom: 1px solid #ece7df;
+  padding: 14px 18px;
+  text-align: left;
+  vertical-align: top;
+  font-size: 14px;
+}
+
+.policyTable th {
+  width: 32%;
+  font-weight: 700;
+  color: #1b1c1c;
+}
+
+.policyTable tr:nth-child(odd) {
+  background: #f9f7f2;
+}
+
+.policyTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #95d4b3;
+  border-radius: 999px;
+  background: #ecfdf5;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #065f46;
+}
+
+.documentList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.documentRow {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border: 1px solid #ece7df;
+  border-radius: 14px;
+  padding: 16px;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.documentRow:hover {
+  transform: translateY(-2px);
+  border-color: #d4e3ff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06), 0 8px 16px rgba(0, 0, 0, 0.08);
+}
+
+.documentTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.documentMeta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.documentIcon {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #efeded;
+  color: #001f3f;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.documentName {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1b1c1c;
+}
+
+.documentSubtext {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #5f6368;
+}
+
+.documentStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.documentExcerpt {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #43474e;
+}
+
+.aiHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.aiConfidence {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 110px;
+  height: 110px;
+  margin: 0 auto 18px;
+  border: 4px solid #059669;
+  border-radius: 999px;
+  color: #059669;
+  font-family: var(--font-display), Arial, sans-serif;
+  font-size: 34px;
+  font-weight: 800;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+}
+
+.aiConfidenceLabel {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5f6368;
+  text-align: center;
+}
+
+.aiCheckList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 13px;
+}
+
+.aiCheck {
+  display: flex;
+  gap: 10px;
+}
+
+.aiSummary {
+  margin-top: 18px;
+  border-radius: 14px;
+  background: #d4e3ff;
+  padding: 14px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #001c3a;
+}
+
+.decisionTextarea {
+  width: 100%;
+  min-height: 130px;
+  resize: vertical;
+  border: 1px solid #e5e1da;
+  border-radius: 12px;
+  background: #f9f7f2;
+  padding: 14px;
+  font-size: 14px;
+  color: #1b1c1c;
+  outline: none;
+}
+
+.decisionTextarea:focus {
+  border-color: #476083;
+  box-shadow: 0 0 0 1px #476083;
+}
+
+.decisionActions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.approveButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 14px;
+  background: #001f3f;
+  color: #ffffff;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.secondaryActions {
+  display: grid;
+  gap: 12px;
+}
+
+.requestButton,
+.denyButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  border: 1px solid currentColor;
+  padding: 14px;
+  font-size: 14px;
+  font-weight: 700;
+  background: transparent;
+}
+
+.requestButton {
+  color: #001f3f;
+}
+
+.denyButton {
+  color: #93000a;
+}
+
+.detailDecision {
+  margin-top: 24px;
+}
+
+@media (min-width: 768px) {
+  .sidebar {
+    display: flex;
+  }
+
+  .patientHeader {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .splitGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metaBannerGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .secondaryActions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .documentRow {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+@media (min-width: 1200px) {
+  .grid {
+    grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+  }
+}

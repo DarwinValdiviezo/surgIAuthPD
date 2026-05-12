@@ -1,7 +1,10 @@
 import { extractCaseDataWithGemini, isGeminiConfigured } from "@/lib/gemini";
-import { ExtractionResult, SurgicalCase } from "@/types/domain";
+import { CaseDocument, ExtractionResult, SurgicalCase } from "@/types/domain";
 
-function extractCaseDataFromMock(surgicalCase: SurgicalCase): ExtractionResult {
+function extractCaseDataFromMock(
+  surgicalCase: SurgicalCase,
+  documents: CaseDocument[],
+): ExtractionResult {
   const missingDocumentsByCase: Record<string, string[]> = {
     "CASE-002": ["orden_quirurgica", "copia_poliza"],
   };
@@ -16,18 +19,24 @@ function extractCaseDataFromMock(surgicalCase: SurgicalCase): ExtractionResult {
   return {
     detectedProcedure: surgicalCase.requestedProcedure,
     detectedDiagnosis: surgicalCase.diagnosis,
-    missingDocuments: missingDocumentsByCase[surgicalCase.caseId] ?? [],
+    missingDocuments: [
+      ...(missingDocumentsByCase[surgicalCase.caseId] ?? []),
+      ...documents
+        .filter((document) => ["pendiente", "faltante"].includes(document.documentStatus.trim().toLowerCase()))
+        .map((document) => document.documentType),
+    ],
     confidence: confidenceByCase[surgicalCase.caseId] ?? 0.9,
     source: "mock",
   };
 }
 
 export async function extractCaseData(surgicalCase: SurgicalCase): Promise<ExtractionResult> {
-  return extractCaseDataForMode(surgicalCase, { preferAI: true });
+  return extractCaseDataForMode(surgicalCase, [], { preferAI: true });
 }
 
 export async function extractCaseDataForMode(
   surgicalCase: SurgicalCase,
+  documents: CaseDocument[],
   options?: {
     preferAI?: boolean;
   },
@@ -35,13 +44,13 @@ export async function extractCaseDataForMode(
   const preferAI = options?.preferAI ?? true;
 
   if (!preferAI || !isGeminiConfigured()) {
-    return extractCaseDataFromMock(surgicalCase);
+    return extractCaseDataFromMock(surgicalCase, documents);
   }
 
   try {
-    return await extractCaseDataWithGemini(surgicalCase);
+    return await extractCaseDataWithGemini(surgicalCase, documents);
   } catch (error) {
     console.error("Fallo la extraccion con Gemini, se usara fallback mock.", error);
-    return extractCaseDataFromMock(surgicalCase);
+    return extractCaseDataFromMock(surgicalCase, documents);
   }
 }

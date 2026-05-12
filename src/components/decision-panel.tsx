@@ -4,7 +4,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { CaseEvaluation } from "@/types/domain";
 
 export function DecisionPanel({ evaluation }: { evaluation: CaseEvaluation }) {
-  const { decision, extraction } = evaluation;
+  const { decision, extraction, documents } = evaluation;
 
   return (
     <section className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
@@ -35,6 +35,9 @@ export function DecisionPanel({ evaluation }: { evaluation: CaseEvaluation }) {
 
       <div className="mt-6">
         <ExtractionSummary extraction={extraction} />
+        <p className="mt-3 text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
+          Documentos relacionados: {documents.length}
+        </p>
       </div>
 
       <div className="mt-6">
