@@ -1,6 +1,7 @@
+import { extractCaseDataWithGemini, isGeminiConfigured } from "@/lib/gemini";
 import { ExtractionResult, SurgicalCase } from "@/types/domain";
 
-export function extractCaseData(surgicalCase: SurgicalCase): ExtractionResult {
+function extractCaseDataFromMock(surgicalCase: SurgicalCase): ExtractionResult {
   const missingDocumentsByCase: Record<string, string[]> = {
     "CASE-002": ["orden_quirurgica", "copia_poliza"],
   };
@@ -17,5 +18,30 @@ export function extractCaseData(surgicalCase: SurgicalCase): ExtractionResult {
     detectedDiagnosis: surgicalCase.diagnosis,
     missingDocuments: missingDocumentsByCase[surgicalCase.caseId] ?? [],
     confidence: confidenceByCase[surgicalCase.caseId] ?? 0.9,
+    source: "mock",
   };
+}
+
+export async function extractCaseData(surgicalCase: SurgicalCase): Promise<ExtractionResult> {
+  return extractCaseDataForMode(surgicalCase, { preferAI: true });
+}
+
+export async function extractCaseDataForMode(
+  surgicalCase: SurgicalCase,
+  options?: {
+    preferAI?: boolean;
+  },
+): Promise<ExtractionResult> {
+  const preferAI = options?.preferAI ?? true;
+
+  if (!preferAI || !isGeminiConfigured()) {
+    return extractCaseDataFromMock(surgicalCase);
+  }
+
+  try {
+    return await extractCaseDataWithGemini(surgicalCase);
+  } catch (error) {
+    console.error("Fallo la extraccion con Gemini, se usara fallback mock.", error);
+    return extractCaseDataFromMock(surgicalCase);
+  }
 }

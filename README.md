@@ -44,6 +44,7 @@ En esta rama ya existe una base funcional del proyecto con:
 - Tipos base del dominio
 - Motor de reglas inicial
 - Integracion con Notion
+- Integracion base con Gemini 2.5 Flash para extraccion estructurada
 - Fallback a mocks si Notion no esta configurado o falla
 
 ## Estructura actual
@@ -84,9 +85,9 @@ Reglas actualmente implementadas:
 
 - Validacion de existencia de poliza
 - Validacion de confianza minima de extraccion
-- Validacion de documentos faltantes
+- Validacion de documentos faltantes con equivalencias y alias
 - Validacion de exclusiones
-- Validacion de cobertura
+- Validacion de cobertura exacta, parcial y por categoria quirurgica
 - Validacion de carencia usando `policyStartDate` y `waitingPeriodDays`
 
 Escenarios mock ya cubiertos:
@@ -131,7 +132,12 @@ NOTION_TOKEN=
 NOTION_CASES_DATA_SOURCE_ID=
 NOTION_POLICIES_DATA_SOURCE_ID=
 NOTION_DOCUMENTS_DATA_SOURCE_ID=
+GEMINI_API_KEY=
 ```
+
+Si `GEMINI_API_KEY` no esta configurada o Gemini falla, el proyecto usa una extraccion mock como respaldo.
+
+La UI del dashboard y del detalle de caso no dispara Gemini automaticamente. La llamada al modelo se reserva para el procesamiento explicito del caso, con el fin de evitar costos, timeouts y consumo innecesario de cuota.
 
 ## Configuracion de Notion
 
@@ -404,14 +410,30 @@ Cuando se procesa un caso, se actualizan estos campos de `Casos Quirurgicos`:
 - Se implemento escritura de decisiones en casos
 - Se resolvio el manejo de `database_id` y `data_source_id`
 
+### Etapa 5
+
+- Se mejoro la logica de cobertura para aceptar categorias quirurgicas como `Cirugia General`
+- Se agrego una taxonomia inicial de procedimientos hacia categorias
+- Se mejoro el cruce de documentos requeridos contra documentos presentados usando alias y equivalencias
+
+### Etapa 6
+
+- Se agrego una integracion base con `Gemini 2.5 Flash`
+- La extraccion de procedimiento, diagnostico y faltantes puede venir de Gemini
+- Se dejo fallback a extraccion mock cuando la clave no existe o la llamada falla
+
 ## Siguiente paso recomendado
 
 El siguiente bloque de trabajo recomendado es:
 
 1. Probar `POST /api/process-case` con casos reales
 2. Ajustar los datos reales de Notion para que produzcan decisiones consistentes
-3. Reemplazar la extraccion mock por OpenAI
+3. Reemplazar la extraccion mock por Gemini u OpenAI
 4. Mejorar la UI del detalle de caso
+
+## Nota de seguridad
+
+Si una clave de API o token se expone en chat, capturas, commits o archivos compartidos, debe regenerarse de inmediato y reemplazarse en `.env.local`.
 
 ## Referencias tecnicas
 

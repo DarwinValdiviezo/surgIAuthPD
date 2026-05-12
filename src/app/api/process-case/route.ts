@@ -5,7 +5,7 @@ import {
   getDataSourceMode,
   saveCaseDecision,
 } from "@/lib/case-service";
-import { extractCaseData } from "@/lib/extraction";
+import { extractCaseDataForMode } from "@/lib/extraction";
 import { evaluateCoverage } from "@/rules/coverage";
 
 export async function GET() {
@@ -19,36 +19,46 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const caseId = body?.caseId as string | undefined;
+  try {
+    const body = await request.json();
+    const caseId = body?.caseId as string | undefined;
 
-  if (!caseId) {
+    if (!caseId) {
+      return NextResponse.json(
+        { error: "caseId es obligatorio." },
+        { status: 400 },
+      );
+    }
+
+    const surgicalCase = await findCaseById(caseId);
+
+    if (!surgicalCase) {
+      return NextResponse.json(
+        { error: "No se encontro el caso solicitado." },
+        { status: 404 },
+      );
+    }
+
+    const policy = await findPolicyById(surgicalCase.policyId);
+    const extraction = await extractCaseDataForMode(surgicalCase, { preferAI: true });
+    const decision = evaluateCoverage(surgicalCase, policy, extraction);
+    const persistence = await saveCaseDecision(surgicalCase, decision);
+
+    return NextResponse.json({
+      source: getDataSourceMode(),
+      persistence,
+      case: surgicalCase,
+      policy,
+      extraction,
+      decision,
+    });
+  } catch (error) {
+    console.error("Fallo al procesar el caso.", error);
     return NextResponse.json(
-      { error: "caseId es obligatorio." },
-      { status: 400 },
+      {
+        error: "Ocurrio un error al procesar el caso.",
+      },
+      { status: 500 },
     );
   }
-
-  const surgicalCase = await findCaseById(caseId);
-
-  if (!surgicalCase) {
-    return NextResponse.json(
-      { error: "No se encontro el caso solicitado." },
-      { status: 404 },
-    );
-  }
-
-  const policy = await findPolicyById(surgicalCase.policyId);
-  const extraction = extractCaseData(surgicalCase);
-  const decision = evaluateCoverage(surgicalCase, policy, extraction);
-  const persistence = await saveCaseDecision(surgicalCase, decision);
-
-  return NextResponse.json({
-    source: getDataSourceMode(),
-    persistence,
-    case: surgicalCase,
-    policy,
-    extraction,
-    decision,
-  });
 }

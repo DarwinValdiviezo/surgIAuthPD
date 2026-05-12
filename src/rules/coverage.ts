@@ -1,7 +1,12 @@
 import { DecisionResult, ExtractionResult, Policy, SurgicalCase } from "@/types/domain";
+import {
+  documentsMatch,
+  normalizeMedicalText,
+  procedureMatchesCoverage,
+} from "@/lib/medical-taxonomy";
 
 function normalize(value: string): string {
-  return value.trim().toLowerCase();
+  return normalizeMedicalText(value);
 }
 
 function createChecks(overrides?: Partial<DecisionResult["checks"]>): DecisionResult["checks"] {
@@ -29,13 +34,15 @@ export function evaluateCoverage(
   policy: Policy | undefined,
   extraction: ExtractionResult,
 ): DecisionResult {
+  const evaluatedProcedure = extraction.detectedProcedure || surgicalCase.requestedProcedure;
+
   if (!policy) {
     return {
       status: "Revision manual",
-      reason: "No se encontro una poliza valida para el caso.",
+      reason: `No se encontro una poliza valida para el caso. Se busco policy_id ${surgicalCase.policyId}.`,
       missingDocuments: [],
       confidence: extraction.confidence,
-      evaluatedProcedure: extraction.detectedProcedure || surgicalCase.requestedProcedure,
+      evaluatedProcedure,
       checks: createChecks(),
     };
   }
@@ -46,15 +53,33 @@ export function evaluateCoverage(
       reason: "La confianza de extraccion del informe medico es insuficiente para decidir automaticamente.",
       missingDocuments: extraction.missingDocuments,
       confidence: extraction.confidence,
-      evaluatedProcedure: extraction.detectedProcedure || surgicalCase.requestedProcedure,
+      evaluatedProcedure,
       checks: createChecks({
         policyFound: true,
       }),
     };
   }
 
+  const requestedProcedure = normalize(evaluatedProcedure);
+  const elapsedDays = calculateDayDifference(surgicalCase.policyStartDate, surgicalCase.requestDate);
+
+  const isExcluded = policy.exclusions.some(
+    (procedure) =>
+      normalize(procedure) === requestedProcedure ||
+      requestedProcedure.includes(normalize(procedure)),
+  );
+
+  const isCovered = policy.coveredProcedures.some(
+    (procedure) => procedureMatchesCoverage(evaluatedProcedure, procedure),
+  );
+
+  const waitingPeriodMet = surgicalCase.isUrgent || elapsedDays >= policy.waitingPeriodDays;
+
   const requiredDocuments = policy.requiredDocuments.filter(
-    (documentName) => !surgicalCase.submittedDocuments.includes(documentName),
+    (documentName) =>
+      !surgicalCase.submittedDocuments.some((submittedDocument) =>
+        documentsMatch(documentName, submittedDocument),
+      ),
   );
 
   const combinedMissingDocuments = Array.from(
@@ -67,20 +92,16 @@ export function evaluateCoverage(
       reason: "El caso requiere documentos adicionales antes de emitir una preaprobacion.",
       missingDocuments: combinedMissingDocuments,
       confidence: extraction.confidence,
-      evaluatedProcedure: extraction.detectedProcedure || surgicalCase.requestedProcedure,
+      evaluatedProcedure,
       checks: createChecks({
         policyFound: true,
         confidenceAccepted: true,
+        waitingPeriodMet,
+        covered: isCovered,
+        excluded: isExcluded,
       }),
     };
   }
-
-  const requestedProcedure = normalize(extraction.detectedProcedure || surgicalCase.requestedProcedure);
-  const elapsedDays = calculateDayDifference(surgicalCase.policyStartDate, surgicalCase.requestDate);
-
-  const isExcluded = policy.exclusions.some(
-    (procedure) => normalize(procedure) === requestedProcedure,
-  );
 
   if (isExcluded) {
     return {
@@ -88,42 +109,41 @@ export function evaluateCoverage(
       reason: "El procedimiento solicitado esta dentro de las exclusiones registradas en la poliza.",
       missingDocuments: [],
       confidence: extraction.confidence,
-      evaluatedProcedure: extraction.detectedProcedure || surgicalCase.requestedProcedure,
+      evaluatedProcedure,
       checks: createChecks({
         policyFound: true,
         confidenceAccepted: true,
         documentsComplete: true,
+        waitingPeriodMet,
+        covered: isCovered,
         excluded: true,
       }),
     };
   }
 
-  const isCovered = policy.coveredProcedures.some(
-    (procedure) => normalize(procedure) === requestedProcedure,
-  );
-
   if (!isCovered) {
     return {
       status: "Revision manual",
-      reason: "El procedimiento no aparece en la lista de coberturas directas de la poliza.",
+      reason: "El procedimiento no aparece en la lista de coberturas directas ni coincide con una categoria quirurgica cubierta por la poliza.",
       missingDocuments: [],
       confidence: extraction.confidence,
-      evaluatedProcedure: extraction.detectedProcedure || surgicalCase.requestedProcedure,
+      evaluatedProcedure,
       checks: createChecks({
         policyFound: true,
         confidenceAccepted: true,
         documentsComplete: true,
+        waitingPeriodMet,
       }),
     };
   }
 
-  if (!surgicalCase.isUrgent && elapsedDays < policy.waitingPeriodDays) {
+  if (!waitingPeriodMet) {
     return {
       status: "Revision manual",
       reason: `La poliza aun no cumple el periodo de carencia requerido. Se registran ${elapsedDays} dias de vigencia frente a ${policy.waitingPeriodDays} dias exigidos.`,
       missingDocuments: [],
       confidence: extraction.confidence,
-      evaluatedProcedure: extraction.detectedProcedure || surgicalCase.requestedProcedure,
+      evaluatedProcedure,
       checks: createChecks({
         policyFound: true,
         confidenceAccepted: true,
@@ -135,10 +155,10 @@ export function evaluateCoverage(
 
   return {
     status: "Preaprobado",
-    reason: `El procedimiento ${extraction.detectedProcedure} cumple las reglas basicas de cobertura para esta poliza.`,
+    reason: `El procedimiento ${evaluatedProcedure} cumple las reglas basicas de cobertura, carencia y documentacion para esta poliza.`,
     missingDocuments: [],
     confidence: extraction.confidence,
-    evaluatedProcedure: extraction.detectedProcedure || surgicalCase.requestedProcedure,
+    evaluatedProcedure,
     checks: createChecks({
       policyFound: true,
       confidenceAccepted: true,

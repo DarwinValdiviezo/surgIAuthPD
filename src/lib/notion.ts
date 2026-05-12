@@ -13,6 +13,7 @@ const policiesDataSourceId = process.env.NOTION_POLICIES_DATA_SOURCE_ID;
 const documentsDataSourceId = process.env.NOTION_DOCUMENTS_DATA_SOURCE_ID;
 
 let notionClient: Client | null = null;
+const resolvedDataSourceIds = new Map<string, string>();
 
 function getNotionClient(): Client {
   if (!notionToken) {
@@ -22,6 +23,7 @@ function getNotionClient(): Client {
   if (!notionClient) {
     notionClient = new Client({
       auth: notionToken,
+      timeoutMs: 120000,
     });
   }
 
@@ -64,6 +66,12 @@ function extractDataSourceIdFromDatabase(database: GetDatabaseResponse): string 
 }
 
 async function resolveDataSourceId(databaseId: string): Promise<string> {
+  const cachedId = resolvedDataSourceIds.get(databaseId);
+
+  if (cachedId) {
+    return cachedId;
+  }
+
   const notion = getNotionClient();
 
   try {
@@ -71,7 +79,9 @@ async function resolveDataSourceId(databaseId: string): Promise<string> {
       database_id: databaseId,
     });
 
-    return extractDataSourceIdFromDatabase(database);
+    const dataSourceId = extractDataSourceIdFromDatabase(database);
+    resolvedDataSourceIds.set(databaseId, dataSourceId);
+    return dataSourceId;
   } catch (error) {
     if (!isObjectNotFoundError(error)) {
       throw error;
@@ -82,6 +92,7 @@ async function resolveDataSourceId(databaseId: string): Promise<string> {
       data_source_id: databaseId,
     });
 
+    resolvedDataSourceIds.set(databaseId, databaseId);
     return databaseId;
   }
 }

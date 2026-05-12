@@ -1,19 +1,12 @@
 import Link from "next/link";
 import { CaseCard } from "@/components/case-card";
-import { findPolicyById, getDataSourceMode, listCases } from "@/lib/case-service";
-import { extractCaseData } from "@/lib/extraction";
-import { evaluateCoverage } from "@/rules/coverage";
+import { evaluateSurgicalCase } from "@/lib/case-evaluation";
+import { getDataSourceMode, listCases } from "@/lib/case-service";
 
 export default async function DashboardPage() {
   const cases = await listCases();
-  const policies = await Promise.all(cases.map((surgicalCase) => findPolicyById(surgicalCase.policyId)));
-  const decisions = cases.map((surgicalCase, index) =>
-    evaluateCoverage(
-      surgicalCase,
-      policies[index],
-      extractCaseData(surgicalCase),
-    ),
-  );
+  const evaluations = await Promise.all(cases.map((surgicalCase) => evaluateSurgicalCase(surgicalCase)));
+  const decisions = evaluations.map((item) => item.decision);
 
   const metrics = [
     { label: "Casos totales", value: String(cases.length).padStart(2, "0") },
@@ -40,6 +33,9 @@ export default async function DashboardPage() {
               SurgiAuth · {getDataSourceMode() === "notion" ? "Notion" : "Mocks"}
             </p>
             <h1 className="mt-3 text-4xl font-semibold">Panel operativo de pre-autorizacion quirurgica</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-200">
+              Esta vista permite revisar la cola, abrir el detalle de un caso y ejecutar la evaluacion del agente sin depender de Postman.
+            </p>
           </div>
           <Link
             href="/"
@@ -72,8 +68,8 @@ export default async function DashboardPage() {
           </div>
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
-          {cases.map((surgicalCase) => (
-            <CaseCard key={surgicalCase.caseId} surgicalCase={surgicalCase} />
+          {evaluations.map((evaluation) => (
+            <CaseCard key={evaluation.case.caseId} evaluation={evaluation} />
           ))}
         </div>
       </section>

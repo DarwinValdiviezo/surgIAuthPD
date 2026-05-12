@@ -8,6 +8,27 @@ import {
 } from "@/lib/notion";
 import { DecisionResult, Policy, SurgicalCase } from "@/types/domain";
 
+function normalizeIdentifier(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+const CACHE_TTL_MS = 30000;
+
+let casesCache: { expiresAt: number; data: SurgicalCase[] } | null = null;
+let policiesCache: { expiresAt: number; data: Policy[] } | null = null;
+
+function getValidCacheEntry<T>(entry: { expiresAt: number; data: T } | null): T | null {
+  if (!entry) {
+    return null;
+  }
+
+  if (Date.now() > entry.expiresAt) {
+    return null;
+  }
+
+  return entry.data;
+}
+
 export function getDataSourceMode(): "notion" | "mock" {
   return isNotionConfigured() ? "notion" : "mock";
 }
@@ -17,8 +38,18 @@ export async function listCases(): Promise<SurgicalCase[]> {
     return mockCases;
   }
 
+  const cachedCases = getValidCacheEntry(casesCache);
+  if (cachedCases) {
+    return cachedCases;
+  }
+
   try {
-    return await queryCasesFromNotion();
+    const cases = await queryCasesFromNotion();
+    casesCache = {
+      expiresAt: Date.now() + CACHE_TTL_MS,
+      data: cases,
+    };
+    return cases;
   } catch (error) {
     console.error("Fallo al consultar casos en Notion, se usaran mocks.", error);
     return mockCases;
@@ -35,8 +66,18 @@ export async function listPolicies(): Promise<Policy[]> {
     return mockPolicies;
   }
 
+  const cachedPolicies = getValidCacheEntry(policiesCache);
+  if (cachedPolicies) {
+    return cachedPolicies;
+  }
+
   try {
-    return await queryPoliciesFromNotion();
+    const policies = await queryPoliciesFromNotion();
+    policiesCache = {
+      expiresAt: Date.now() + CACHE_TTL_MS,
+      data: policies,
+    };
+    return policies;
   } catch (error) {
     console.error("Fallo al consultar polizas en Notion, se usaran mocks.", error);
     return mockPolicies;
@@ -45,19 +86,29 @@ export async function listPolicies(): Promise<Policy[]> {
 
 export async function findPolicyById(policyId: string): Promise<Policy | undefined> {
   const policies = await listPolicies();
-  return policies.find((item) => item.policyId === policyId);
+  const normalizedPolicyId = normalizeIdentifier(policyId);
+
+  return policies.find(
+    (item) => normalizeIdentifier(item.policyId) === normalizedPolicyId,
+  );
 }
 
 export async function saveCaseDecision(
   surgicalCase: SurgicalCase,
   decision: DecisionResult,
-): Promise<"notion" | "mock"> {
+): Promise<"notion" | "mock" | "notion_failed"> {
   if (!isNotionConfigured() || !surgicalCase.notionPageId) {
     return "mock";
   }
 
-  await updateCaseDecisionInNotion(surgicalCase.notionPageId, decision);
-  return "notion";
+  try {
+    await updateCaseDecisionInNotion(surgicalCase.notionPageId, decision);
+    casesCache = null;
+    return "notion";
+  } catch (error) {
+    console.error("Fallo al persistir la decision en Notion.", error);
+    return "notion_failed";
+  }
 }
 
 export function getNotionSetupStatus() {

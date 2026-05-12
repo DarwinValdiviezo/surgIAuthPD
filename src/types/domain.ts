@@ -36,6 +36,7 @@ export interface ExtractionResult {
   detectedDiagnosis: string;
   missingDocuments: string[];
   confidence: number;
+  source?: "gemini" | "mock";
 }
 
 export interface DecisionResult {
@@ -52,4 +53,11 @@ export interface DecisionResult {
     excluded: boolean;
     documentsComplete: boolean;
   };
+}
+
+export interface CaseEvaluation {
+  case: SurgicalCase;
+  policy?: Policy;
+  extraction: ExtractionResult;
+  decision: DecisionResult;
 }
