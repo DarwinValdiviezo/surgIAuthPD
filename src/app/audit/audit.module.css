@@ -1,0 +1,29 @@
+.page{min-height:100vh;background:#f8f9ff;color:#0b1c30}
+.shell{display:flex;min-height:100vh}
+.main{display:flex;min-width:0;flex:1;flex-direction:column}
+.canvas{margin:0 auto;display:flex;width:100%;max-width:1600px;flex-direction:column;gap:24px;padding:0 16px 40px}
+.headerBlock{display:flex;flex-direction:column;gap:16px;padding-top:12px}
+.title{margin:0;color:#000613;font-family:var(--font-display),Arial,sans-serif;font-size:32px;font-weight:700;letter-spacing:-.02em}
+.subtitle{margin:8px 0 0;color:#43474e;font-size:14px;line-height:1.6}
+.metrics{display:grid;gap:16px}
+.metricCard,.tableCard,.noteCard,.featureCard{border:1px solid #c4c6cf;border-radius:8px;background:#fff}
+.metricCard{padding:20px}
+.metricLabel,.noteLabel{color:#43474e;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.metricValue{display:block;margin-top:10px;color:#000613;font-family:var(--font-display),Arial,sans-serif;font-size:28px;font-weight:700}
+.tableCard{overflow:hidden}
+.tableWrap{overflow-x:auto}
+.table{width:100%;min-width:980px;border-collapse:collapse}
+.table thead th{border-bottom:1px solid #c4c6cf;background:#eff4ff;padding:14px 16px;text-align:left;color:#43474e;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.table tbody td{border-bottom:1px solid #e3e8ee;padding:16px;color:#0b1c30;font-size:13px;vertical-align:top}
+.altRow{background:rgba(239,244,255,.28)}
+.caseLink{color:#001f3f;text-decoration:none;font-weight:700}
+.status{display:inline-flex;align-items:center;border-radius:999px;background:#e5eeff;color:#2f486a;padding:4px 10px;font-size:11px;font-weight:700}
+.reason{max-width:420px;color:#43474e;line-height:1.6}
+.bottomGrid{display:grid;gap:24px}
+.noteCard{padding:24px}
+.noteText{margin:12px 0 0;color:#43474e;font-size:13px;line-height:1.7}
+.featureCard{background:#001f3f;color:#fff;padding:24px}
+.featureCard h4{margin:0;font-family:var(--font-display),Arial,sans-serif;font-size:22px;font-weight:700}
+.featureCard p{margin:12px 0 0;color:rgba(255,255,255,.78);font-size:13px;line-height:1.7}
+@media (min-width:768px){.metrics{grid-template-columns:repeat(4,minmax(0,1fr))}.bottomGrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:1024px){.main{margin-left:256px}.canvas{padding:0 32px 40px}}

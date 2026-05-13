@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     const policy = await findPolicyById(surgicalCase.policyId);
     const documents = await findDocumentsByCaseId(surgicalCase.caseId);
     const extraction = await extractCaseDataForMode(surgicalCase, documents, { preferAI: true });
-    const decision = evaluateCoverage(surgicalCase, policy, extraction);
+    const decision = evaluateCoverage(surgicalCase, policy, extraction, documents);
     const persistence = await saveCaseDecision(surgicalCase, decision);
 
     return NextResponse.json({

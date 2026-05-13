@@ -1,5 +1,6 @@
 import { Client } from "@notionhq/client";
 import type {
+  CreatePageParameters,
   GetDatabaseResponse,
   PageObjectResponse,
   QueryDataSourceResponse,
@@ -54,6 +55,15 @@ function isObjectNotFoundError(error: unknown): boolean {
     "code" in error &&
     typeof error.code === "string" &&
     error.code === "object_not_found"
+  );
+}
+
+function isValidationError(error: unknown): error is Error & { code: string; message: string } {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    typeof error.code === "string" &&
+    error.code === "validation_error"
   );
 }
 
@@ -199,6 +209,37 @@ function getStatusName(page: PageObjectResponse, propertyName: string): string {
   return "";
 }
 
+function createTextContent(content: string) {
+  return [
+    {
+      type: "text" as const,
+      text: {
+        content: content.slice(0, 1900),
+      },
+    },
+  ];
+}
+
+function createMultiSelectOptions(values: string[]) {
+  return values
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) => ({ name: value.slice(0, 100) }));
+}
+
+async function createPageInDataSource(args: Omit<CreatePageParameters, "parent"> & { dataSourceId: string }) {
+  const notion = getNotionClient();
+  const dataSourceId = await resolveDataSourceId(args.dataSourceId);
+
+  return notion.pages.create({
+    parent: {
+      data_source_id: dataSourceId,
+      type: "data_source_id",
+    },
+    properties: args.properties,
+  });
+}
+
 function mapCasePage(page: PageObjectResponse): SurgicalCase {
   return {
     notionPageId: page.id,
@@ -272,6 +313,165 @@ export async function queryDocumentsFromNotion(): Promise<CaseDocument[]> {
 
   const response = await queryNotionCollection(documentsDataSourceId);
   return response.results.filter(isPageObject).map(mapDocumentPage);
+}
+
+export async function createCaseInNotion(surgicalCase: SurgicalCase): Promise<SurgicalCase> {
+  if (!casesDataSourceId) {
+    throw new Error("NOTION_CASES_DATA_SOURCE_ID no esta configurado.");
+  }
+
+  const createdPage = await createPageInDataSource({
+    dataSourceId: casesDataSourceId,
+    properties: {
+      case_id: {
+        title: createTextContent(surgicalCase.caseId),
+      },
+      paciente: {
+        rich_text: createTextContent(surgicalCase.patientName),
+      },
+      aseguradora: {
+        rich_text: createTextContent(surgicalCase.insurerName),
+      },
+      policy_id: {
+        rich_text: createTextContent(surgicalCase.policyId),
+      },
+      inicio_poliza: {
+        date: {
+          start: surgicalCase.policyStartDate,
+        },
+      },
+      diagnostico: {
+        rich_text: createTextContent(surgicalCase.diagnosis),
+      },
+      procedimiento_solicitado: {
+        rich_text: createTextContent(surgicalCase.requestedProcedure),
+      },
+      fecha_solicitud: {
+        date: {
+          start: surgicalCase.requestDate,
+        },
+      },
+      documentos_presentados: {
+        multi_select: createMultiSelectOptions(surgicalCase.submittedDocuments),
+      },
+      urgente: {
+        checkbox: surgicalCase.isUrgent,
+      },
+      estado: {
+        status: {
+          name: surgicalCase.status,
+        },
+      },
+    },
+  });
+
+  if (!("object" in createdPage) || createdPage.object !== "page" || !("id" in createdPage)) {
+    throw new Error("Notion no devolvio una pagina valida al crear el caso.");
+  }
+
+  return {
+    ...surgicalCase,
+    notionPageId: createdPage.id,
+  };
+}
+
+export async function createPolicyInNotion(policy: Policy): Promise<Policy> {
+  if (!policiesDataSourceId) {
+    throw new Error("NOTION_POLICIES_DATA_SOURCE_ID no esta configurado.");
+  }
+
+  const createdPage = await createPageInDataSource({
+    dataSourceId: policiesDataSourceId,
+    properties: {
+      policy_id: {
+        title: createTextContent(policy.policyId),
+      },
+      aseguradora: {
+        rich_text: createTextContent(policy.insurerName),
+      },
+      procedimientos_cubiertos: {
+        multi_select: createMultiSelectOptions(policy.coveredProcedures),
+      },
+      exclusiones: {
+        multi_select: createMultiSelectOptions(policy.exclusions),
+      },
+      dias_carencia: {
+        number: policy.waitingPeriodDays,
+      },
+      documentos_requeridos: {
+        multi_select: createMultiSelectOptions(policy.requiredDocuments),
+      },
+    },
+  });
+
+  if (!("object" in createdPage) || createdPage.object !== "page" || !("id" in createdPage)) {
+    throw new Error("Notion no devolvio una pagina valida al crear la poliza.");
+  }
+
+  return {
+    ...policy,
+    notionPageId: createdPage.id,
+  };
+}
+
+export async function createDocumentInNotion(document: CaseDocument): Promise<CaseDocument> {
+  if (!documentsDataSourceId) {
+    throw new Error("NOTION_DOCUMENTS_DATA_SOURCE_ID no esta configurado.");
+  }
+
+  const baseProperties: NonNullable<CreatePageParameters["properties"]> = {
+    document_id: {
+      title: createTextContent(document.documentId),
+    },
+    case_id: {
+      rich_text: createTextContent(document.caseId),
+    },
+    tipo_documento: {
+      rich_text: createTextContent(document.documentType),
+    },
+    estado_documento: {
+      status: {
+        name: document.documentStatus,
+      },
+    },
+    texto_extraido: {
+      rich_text: createTextContent(document.extractedText),
+    },
+  };
+
+  let createdPage;
+
+  try {
+    createdPage = await createPageInDataSource({
+      dataSourceId: documentsDataSourceId,
+      properties: document.fileUrl
+        ? {
+            ...baseProperties,
+            archivo_url: {
+              url: document.fileUrl,
+            },
+          }
+        : baseProperties,
+    });
+  } catch (error) {
+    if (!(isValidationError(error) && error.message.includes("archivo_url"))) {
+      throw error;
+    }
+
+    createdPage = await createPageInDataSource({
+      dataSourceId: documentsDataSourceId,
+      properties: baseProperties,
+    });
+  }
+
+  if (!("object" in createdPage) || createdPage.object !== "page" || !("id" in createdPage)) {
+    throw new Error("Notion no devolvio una pagina valida al crear el documento.");
+  }
+
+  return {
+    ...document,
+    notionPageId: createdPage.id,
+  };
 }
 
 export async function updateCaseDecisionInNotion(

@@ -14,7 +14,7 @@ export async function evaluateSurgicalCase(
   const extraction = await extractCaseDataForMode(surgicalCase, documents, {
     preferAI: options?.preferAI ?? false,
   });
-  const decision = evaluateCoverage(surgicalCase, policy, extraction);
+  const decision = evaluateCoverage(surgicalCase, policy, extraction, documents);
 
   return {
     case: surgicalCase,

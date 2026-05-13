@@ -1,5 +1,8 @@
 import { mockCases, mockPolicies } from "@/lib/mock-data";
 import {
+  createCaseInNotion,
+  createDocumentInNotion,
+  createPolicyInNotion,
   getNotionConfigStatus,
   isNotionConfigured,
   queryCasesFromNotion,
@@ -144,6 +147,36 @@ export async function saveCaseDecision(
     console.error("Fallo al persistir la decision en Notion.", error);
     return "notion_failed";
   }
+}
+
+export async function createCase(surgicalCase: SurgicalCase): Promise<SurgicalCase> {
+  if (!isNotionConfigured()) {
+    throw new Error("La creacion de casos requiere una conexion activa con Notion.");
+  }
+
+  const createdCase = await createCaseInNotion(surgicalCase);
+  casesCache = null;
+  return createdCase;
+}
+
+export async function createPolicy(policy: Policy): Promise<Policy> {
+  if (!isNotionConfigured()) {
+    throw new Error("La creacion de polizas requiere una conexion activa con Notion.");
+  }
+
+  const createdPolicy = await createPolicyInNotion(policy);
+  policiesCache = null;
+  return createdPolicy;
+}
+
+export async function createDocument(document: CaseDocument): Promise<CaseDocument> {
+  if (!isNotionConfigured()) {
+    throw new Error("La creacion de documentos requiere una conexion activa con Notion.");
+  }
+
+  const createdDocument = await createDocumentInNotion(document);
+  documentsCache = null;
+  return createdDocument;
 }
 
 export function getNotionSetupStatus() {

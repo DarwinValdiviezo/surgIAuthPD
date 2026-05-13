@@ -1,4 +1,4 @@
-import { DecisionResult, ExtractionResult, Policy, SurgicalCase } from "@/types/domain";
+import { CaseDocument, DecisionResult, ExtractionResult, Policy, SurgicalCase } from "@/types/domain";
 import {
   documentsMatch,
   normalizeMedicalText,
@@ -33,6 +33,7 @@ export function evaluateCoverage(
   surgicalCase: SurgicalCase,
   policy: Policy | undefined,
   extraction: ExtractionResult,
+  documents: CaseDocument[] = [],
 ): DecisionResult {
   const evaluatedProcedure = extraction.detectedProcedure || surgicalCase.requestedProcedure;
 
@@ -75,15 +76,31 @@ export function evaluateCoverage(
 
   const waitingPeriodMet = surgicalCase.isUrgent || elapsedDays >= policy.waitingPeriodDays;
 
+  const submittedDocumentPool = Array.from(
+    new Set([
+      ...surgicalCase.submittedDocuments,
+      ...documents
+        .filter((document) => ["procesado", "disponible"].includes(document.documentStatus.trim().toLowerCase()))
+        .map((document) => document.documentType),
+    ]),
+  );
+
   const requiredDocuments = policy.requiredDocuments.filter(
     (documentName) =>
-      !surgicalCase.submittedDocuments.some((submittedDocument) =>
+      !submittedDocumentPool.some((submittedDocument) =>
+        documentsMatch(documentName, submittedDocument),
+      ),
+  );
+
+  const extractionMissingDocuments = extraction.missingDocuments.filter(
+    (documentName) =>
+      !submittedDocumentPool.some((submittedDocument) =>
         documentsMatch(documentName, submittedDocument),
       ),
   );
 
   const combinedMissingDocuments = Array.from(
-    new Set([...requiredDocuments, ...extraction.missingDocuments]),
+    new Set([...requiredDocuments, ...extractionMissingDocuments]),
   );
 
   if (combinedMissingDocuments.length > 0) {

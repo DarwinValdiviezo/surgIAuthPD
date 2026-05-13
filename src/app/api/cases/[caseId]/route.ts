@@ -19,5 +19,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     );
   }
 
-  return NextResponse.json(await evaluateSurgicalCase(surgicalCase));
+  return NextResponse.json(
+    await evaluateSurgicalCase(surgicalCase, {
+      preferAI: true,
+    }),
+  );
 }

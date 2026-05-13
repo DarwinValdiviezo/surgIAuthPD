@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getNotionSetupStatus } from "@/lib/case-service";
-import { queryCasesFromNotion, queryPoliciesFromNotion } from "@/lib/notion";
+import { queryCasesFromNotion, queryDocumentsFromNotion, queryPoliciesFromNotion } from "@/lib/notion";
 
 export async function GET() {
   const config = getNotionSetupStatus();
@@ -15,7 +15,11 @@ export async function GET() {
   }
 
   try {
-    const [cases, policies] = await Promise.all([queryCasesFromNotion(), queryPoliciesFromNotion()]);
+    const [cases, policies, documents] = await Promise.all([
+      queryCasesFromNotion(),
+      queryPoliciesFromNotion(),
+      queryDocumentsFromNotion(),
+    ]);
 
     return NextResponse.json({
       ok: true,
@@ -25,6 +29,7 @@ export async function GET() {
       counts: {
         cases: cases.length,
         policies: policies.length,
+        documents: documents.length,
       },
     });
   } catch (error) {

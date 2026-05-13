@@ -3,7 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function ProcessCaseButton({ caseId }: { caseId: string }) {
+type ProcessCaseButtonProps = {
+  caseId: string;
+  compact?: boolean;
+  hideMessage?: boolean;
+};
+
+export function ProcessCaseButton({ caseId, compact = false, hideMessage = false }: ProcessCaseButtonProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -43,11 +49,15 @@ export function ProcessCaseButton({ caseId }: { caseId: string }) {
         type="button"
         onClick={handleClick}
         disabled={isLoading}
-        className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
+        className={
+          compact
+            ? "rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
+            : "rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
+        }
       >
         {isLoading ? "Procesando..." : "Procesar caso"}
       </button>
-      {message ? <p className="text-xs text-[var(--muted)]">{message}</p> : null}
+      {!hideMessage && message ? <p className="text-xs text-[var(--muted)]">{message}</p> : null}
     </div>
   );
 }

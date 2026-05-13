@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { AppFooter } from "@/components/app-footer";
+import { AppHeader } from "@/components/app-header";
 import { getDataSourceMode, listCases, listDocuments, listPolicies } from "@/lib/case-service";
 import styles from "./app-home.module.css";
 
@@ -13,24 +15,13 @@ export async function AppHome({ compact = false }: AppHomeProps) {
   return (
     <main className={styles.page}>
       <div className={styles.shell}>
-        <header className={styles.topbar}>
-          <div className={styles.brand}>
-            <div className={styles.brandMark}>SA</div>
-            <div>
-              <p className={styles.brandTitle}>SurgiAuth</p>
-              <p className={styles.brandSubtitle}>Preautorizacion quirurgica en tiempo real</p>
-            </div>
-          </div>
-
-          <div className={styles.topbarLinks}>
-            <a href="/api/notion/health" className={styles.topbarLinkSecondary}>
-              Estado del sistema
-            </a>
-            <Link href="/cases" className={styles.topbarLink}>
-              Ir a casos
-            </Link>
-          </div>
-        </header>
+        <AppHeader
+          showBrand
+          actions={[
+            { href: "/api/notion/health", label: "Estado del sistema", variant: "secondary" },
+            { href: "/cases", label: "Ir a casos" },
+          ]}
+        />
 
         <section className={styles.hero}>
           <article className={styles.heroCard}>
@@ -186,6 +177,8 @@ export async function AppHome({ compact = false }: AppHomeProps) {
             </section>
           </>
         )}
+
+        <AppFooter compact={compact} />
       </div>
     </main>
   );
