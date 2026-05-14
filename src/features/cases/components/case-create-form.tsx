@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
-import { Policy } from "@/types/domain";
 import styles from "@/components/entity-form.module.css";
+import { normalizeMedicalText } from "@/lib/medical-taxonomy";
+import { Policy } from "@/types/domain";
 
 type CaseCreateFormProps = {
   policies: Policy[];
@@ -11,9 +12,58 @@ type CaseCreateFormProps = {
 
 const diagnosisSuggestionsByProcedure: Array<{ procedure: string; diagnosis: string }> = [
   { procedure: "Hernioplastia inguinal con malla", diagnosis: "Hernia inguinal derecha complicada" },
-  { procedure: "Colecistectomía laparoscópica", diagnosis: "Colelitiasis sintomática" },
-  { procedure: "Apendicectomía laparoscópica", diagnosis: "Apendicitis aguda" },
+  { procedure: "Colecistectomia laparoscopica", diagnosis: "Colelitiasis sintomatica" },
+  { procedure: "Apendicectomia laparoscopica", diagnosis: "Apendicitis aguda" },
+  { procedure: "Cirugia laparoscopica digestiva", diagnosis: "Colelitiasis sintomatica" },
+  { procedure: "Cirugia laparoscopica digestiva", diagnosis: "Apendicitis aguda" },
+  { procedure: "Cirugia general", diagnosis: "Hernia inguinal derecha complicada" },
+  { procedure: "Cirugia general", diagnosis: "Colelitiasis sintomatica" },
 ];
+
+const diagnosisSuggestionsByKeyword: Array<{ keywords: string[]; diagnoses: string[] }> = [
+  {
+    keywords: ["digestiva", "laparoscopica"],
+    diagnoses: ["Colelitiasis sintomatica", "Apendicitis aguda"],
+  },
+  {
+    keywords: ["hernio", "inguinal"],
+    diagnoses: ["Hernia inguinal derecha complicada"],
+  },
+  {
+    keywords: ["colecistectomia", "vesicula", "biliar"],
+    diagnoses: ["Colelitiasis sintomatica"],
+  },
+  {
+    keywords: ["apendicectomia", "apendice"],
+    diagnoses: ["Apendicitis aguda"],
+  },
+];
+
+function getDiagnosisSuggestionsForProcedure(procedure: string) {
+  if (!procedure) {
+    return [];
+  }
+
+  const normalizedProcedure = normalizeMedicalText(procedure);
+
+  const exactMatches = diagnosisSuggestionsByProcedure
+    .filter((item) => normalizeMedicalText(item.procedure) === normalizedProcedure)
+    .map((item) => item.diagnosis);
+
+  if (exactMatches.length > 0) {
+    return Array.from(new Set(exactMatches));
+  }
+
+  const keywordMatches = diagnosisSuggestionsByKeyword
+    .filter((rule) => rule.keywords.some((keyword) => normalizedProcedure.includes(normalizeMedicalText(keyword))))
+    .flatMap((rule) => rule.diagnoses);
+
+  if (keywordMatches.length > 0) {
+    return Array.from(new Set(keywordMatches));
+  }
+
+  return [];
+}
 
 export function CaseCreateForm({ policies }: CaseCreateFormProps) {
   const router = useRouter();
@@ -34,10 +84,12 @@ export function CaseCreateForm({ policies }: CaseCreateFormProps) {
     () => policies.find((policy) => policy.policyId === selectedPolicyId),
     [policies, selectedPolicyId],
   );
+
   const procedureOptions = selectedPolicy?.coveredProcedures.filter(Boolean) ?? [];
-  const diagnosisSuggestions = diagnosisSuggestionsByProcedure
-    .filter((item) => !formValues.requestedProcedure || item.procedure === formValues.requestedProcedure)
-    .map((item) => item.diagnosis);
+
+  const diagnosisSuggestions = useMemo(() => {
+    return getDiagnosisSuggestionsForProcedure(formValues.requestedProcedure);
+  }, [formValues.requestedProcedure]);
 
   function updateField(name: string, value: string | boolean) {
     setFormValues((current) => ({
@@ -107,6 +159,7 @@ export function CaseCreateForm({ policies }: CaseCreateFormProps) {
               setFormValues((current) => ({
                 ...current,
                 requestedProcedure: "",
+                diagnosis: "",
               }));
             }}
             required
@@ -150,12 +203,12 @@ export function CaseCreateForm({ policies }: CaseCreateFormProps) {
           value={formValues.requestedProcedure}
           onChange={(event) => {
             const nextProcedure = event.target.value;
-            const suggestedDiagnosis = diagnosisSuggestionsByProcedure.find((item) => item.procedure === nextProcedure)?.diagnosis;
+            const suggestedDiagnosis = getDiagnosisSuggestionsForProcedure(nextProcedure)[0] ?? "";
 
             setFormValues((current) => ({
               ...current,
               requestedProcedure: nextProcedure,
-              diagnosis: current.diagnosis || !suggestedDiagnosis ? current.diagnosis : suggestedDiagnosis,
+              diagnosis: suggestedDiagnosis ?? "",
             }));
           }}
           required
@@ -170,20 +223,37 @@ export function CaseCreateForm({ policies }: CaseCreateFormProps) {
       </div>
 
       <div className={styles.field}>
-        <label htmlFor="case-diagnosis">Diagnostico</label>
+        <label>Diagnostico</label>
+        {diagnosisSuggestions.length > 0 ? (
+          <div className={styles.chipList}>
+            {diagnosisSuggestions.map((item) => (
+              <button
+                key={item}
+                type="button"
+                className={formValues.diagnosis === item ? styles.chipButtonActive : styles.chipButton}
+                onClick={() => updateField("diagnosis", item)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <input
           id="case-diagnosis"
-          list="case-diagnosis-options"
           value={formValues.diagnosis}
           onChange={(event) => updateField("diagnosis", event.target.value)}
-          placeholder="Selecciona o escribe el diagnostico"
+          placeholder={
+            formValues.requestedProcedure
+              ? "Elige una sugerencia o escribe otro diagnostico"
+              : "Primero selecciona el procedimiento"
+          }
           required
         />
-        <datalist id="case-diagnosis-options">
-          {diagnosisSuggestions.map((item) => (
-            <option key={item} value={item} />
-          ))}
-        </datalist>
+        <small>
+          {diagnosisSuggestions.length > 0
+            ? "Elige una opcion sugerida o escribe un diagnostico manual."
+            : "Selecciona primero el procedimiento para ver diagnosticos sugeridos."}
+        </small>
       </div>
 
       <label className={styles.checkboxRow}>

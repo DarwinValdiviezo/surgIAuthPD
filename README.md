@@ -1,131 +1,125 @@
 # SurgiAuth
 
-## Descripcion
+SurgiAuth es un portal de preautorización quirúrgica que conecta hospital, póliza y documentos para responder de forma clara si un caso puede continuar, si falta soporte o si requiere revisión manual.
 
-SurgiAuth es un agente de pre-autorizacion quirurgica en tiempo real. El objetivo del MVP es recibir un caso quirurgico, consultar la poliza del paciente en Notion, evaluar cobertura, carencia y documentos faltantes, y devolver una respuesta inmediata y explicable.
+## Qué hace hoy
 
-Estados de salida contemplados en esta fase:
+El flujo actual del sistema es:
 
-- `Preaprobado`
-- `Pendiente por documentos`
-- `Rechazado por exclusion`
-- `Revision manual`
+1. El hospital crea un caso.
+2. Se vincula la póliza real del paciente desde Notion.
+3. El hospital sube documentos PDF o texto al expediente.
+4. El sistema extrae información del documento.
+5. SurgiAuth evalúa cobertura, carencia, exclusiones y faltantes.
+6. Se devuelve una decisión explicable:
+   - `Preaprobado`
+   - `Pendiente por documentos`
+   - `Rechazado por exclusión`
+   - `Revisión manual`
 
-## Stack elegido
+## Estado actual del proyecto
 
-- `Next.js`
-- `React`
-- `TypeScript`
-- `Tailwind CSS`
-- `Notion API`
-- `OpenAI API` como siguiente integracion
+Hoy el proyecto ya tiene:
 
-La base operativa del MVP es `Notion`. A nivel tecnico no se comporta como una base relacional tradicional. Para una version futura mas robusta, la evolucion natural seria `PostgreSQL`.
+- datos reales conectados desde Notion para `Casos`, `Pólizas` y `Documentos`
+- formularios simplificados para crear casos y subir documentos
+- carga de PDF desde la web
+- extracción de texto en servidor
+- procesamiento del caso con reglas reales
+- modal de procesamiento paso a paso en el detalle del caso
+- dashboard, casos, pólizas y documentos con navegación y layout más limpios
 
-## Objetivo del MVP
+## Cómo funciona la decisión
 
-La primera version debe cumplir este flujo:
+La decisión no sale de texto libre. El motor aplica reglas concretas sobre:
 
-1. Registrar o leer un caso quirurgico.
-2. Consultar la poliza asociada en Notion.
-3. Extraer informacion util del caso.
-4. Aplicar reglas de cobertura, carencia, exclusiones y documentos requeridos.
-5. Escribir la decision de vuelta en Notion.
-6. Mostrar el resultado en un dashboard.
+- el caso
+- la póliza
+- los documentos asociados
+- la extracción de procedimiento y diagnóstico
 
-## Lo que ya se implemento
+La lógica principal revisa:
 
-En esta rama ya existe una base funcional del proyecto con:
+1. si existe la póliza
+2. si hay lectura suficiente para decidir
+3. si faltan documentos requeridos
+4. si el procedimiento está cubierto
+5. si cae en exclusiones
+6. si cumple carencia
 
-- `Next.js + TypeScript + Tailwind`
-- Dashboard inicial en `/dashboard`
-- Endpoint `GET/POST /api/process-case`
-- Endpoint `GET /api/notion/health`
-- Tipos base del dominio
-- Motor de reglas inicial
-- Integracion con Notion
-- Integracion base con Gemini 2.5 Flash para extraccion estructurada
-- Fallback a mocks si Notion no esta configurado o falla
+## Fuente de datos
 
-## Estructura actual
+La fuente principal es Notion.
+
+El proyecto espera estas bases:
+
+- `Casos Quirúrgicos`
+- `Pólizas`
+- `Documentos`
+
+No se incluyen tokens ni IDs reales en este `README`.
+
+## Modo de IA
+
+El sistema soporta dos caminos:
+
+- `rules`
+  Usa extracción y evaluación basada en datos reales y reglas del sistema.
+- `gemini`
+  Puede usarse cuando exista saldo y configuración válida del proveedor.
+
+En este momento el flujo está preparado para trabajar bien con `rules`, evitando depender de cuota externa para las pruebas del MVP.
+
+## Estructura recomendada
+
+La arquitectura actual ya está más ordenada por dominio:
 
 ```text
-surgIAuthPD/
-├─ src/
-│  ├─ app/
-│  │  ├─ api/
-│  │  │  ├─ notion/health/route.ts
-│  │  │  └─ process-case/route.ts
-│  │  ├─ dashboard/page.tsx
-│  │  ├─ layout.tsx
-│  │  └─ page.tsx
-│  ├─ components/
-│  │  ├─ case-card.tsx
-│  │  └─ status-badge.tsx
-│  ├─ lib/
-│  │  ├─ case-service.ts
-│  │  ├─ extraction.ts
-│  │  ├─ mock-data.ts
-│  │  └─ notion.ts
-│  ├─ rules/
-│  │  └─ coverage.ts
-│  └─ types/
-│     └─ domain.ts
-├─ .env.example
-├─ .env.local
-├─ package.json
-└─ README.md
-```
-
-## Motor de reglas actual
-
-La decision final vive en codigo, no en texto generado libremente por IA.
-
-Reglas actualmente implementadas:
-
-- Validacion de existencia de poliza
-- Validacion de confianza minima de extraccion
-- Validacion de documentos faltantes con equivalencias y alias
-- Validacion de exclusiones
-- Validacion de cobertura exacta, parcial y por categoria quirurgica
-- Validacion de carencia usando `policyStartDate` y `waitingPeriodDays`
-
-Escenarios mock ya cubiertos:
-
-- Caso cubierto y completo
-- Caso con documentos faltantes
-- Caso rechazado por exclusion
-- Caso que cae en revision manual por carencia
-
-## Configuracion local
-
-Instalar dependencias:
-
-```powershell
-npm.cmd install
-```
-
-Levantar el proyecto:
-
-```powershell
-npm.cmd run dev
-```
-
-Construccion de prueba:
-
-```powershell
-npm.cmd run build
-```
-
-Lint:
-
-```powershell
-npm.cmd run lint
+src/
+  app/
+    api/
+    cases/
+    dashboard/
+    documents/
+    policies/
+  components/
+    app-footer.tsx
+    app-header.tsx
+    app-sidebar.tsx
+    entity-form.module.css
+  features/
+    cases/
+      components/
+        case-create-form.tsx
+        cases-filters.tsx
+        process-case-button.tsx
+    documents/
+      components/
+        document-create-form.tsx
+        document-file-preview.tsx
+        documents-filters.tsx
+    policies/
+      components/
+        policies-filters.tsx
+        policy-create-form.tsx
+  lib/
+    app-navigation.ts
+    case-evaluation.ts
+    case-service.ts
+    document-processing.ts
+    extraction.ts
+    gemini.ts
+    medical-taxonomy.ts
+    notion.ts
+  rules/
+    coverage.ts
+  types/
+    domain.ts
 ```
 
 ## Variables de entorno
 
-Archivo `.env.local`:
+Usa un archivo `.env.local` con variables como estas:
 
 ```env
 NOTION_TOKEN=
@@ -133,311 +127,140 @@ NOTION_CASES_DATA_SOURCE_ID=
 NOTION_POLICIES_DATA_SOURCE_ID=
 NOTION_DOCUMENTS_DATA_SOURCE_ID=
 GEMINI_API_KEY=
+AI_PROVIDER=rules
 ```
 
-Si `GEMINI_API_KEY` no esta configurada o Gemini falla, el proyecto usa una extraccion mock como respaldo.
+Notas:
 
-La UI del dashboard y del detalle de caso no dispara Gemini automaticamente. La llamada al modelo se reserva para el procesamiento explicito del caso, con el fin de evitar costos, timeouts y consumo innecesario de cuota.
+- `.env.local` no debe subirse
+- `.env.example` sí puede quedarse versionado como referencia
 
-## Configuracion de Notion
+## Scripts útiles
 
-### Resumen de lo que se hizo
+Instalar dependencias:
 
-Se crearon dos bases de datos en Notion:
-
-- `Casos Quirurgicos`
-- `Polizas`
-
-Luego se creo una conexion interna llamada `SurgiAuth`, se le dio acceso a ambas bases y se configuraron los IDs en `.env.local`.
-
-### Nota importante sobre los IDs
-
-En las URLs de Notion, el primer bloque largo corresponde al `database_id`, no siempre al `data_source_id`. El proyecto ya resuelve eso automaticamente.
-
-Esto significa que en `.env.local` puedes colocar el ID que copias desde la URL de la base, y el backend se encarga de obtener el `data_source_id` real antes de consultar filas.
-
-## Paso a paso para crear las bases en Notion
-
-### Base 1: Casos Quirurgicos
-
-Crear una base de datos tipo tabla con estas propiedades exactas:
-
-- `case_id` -> `Title`
-- `paciente` -> `Text`
-- `aseguradora` -> `Text`
-- `policy_id` -> `Text`
-- `inicio_poliza` -> `Date`
-- `diagnostico` -> `Text`
-- `procedimiento_solicitado` -> `Text`
-- `fecha_solicitud` -> `Date`
-- `documentos_presentados` -> `Multi-select`
-- `urgente` -> `Checkbox`
-- `estado` -> `Status`
-- `resultado_final` -> `Text`
-- `motivo_decision` -> `Text`
-- `documentos_faltantes` -> `Multi-select`
-- `confianza_extraccion` -> `Number`
-
-Opciones recomendadas para `estado`:
-
-- `Nuevo`
-- `En analisis`
-- `Preaprobado`
-- `Pendiente por documentos`
-- `Rechazado por exclusion`
-- `Revision manual`
-
-### Base 2: Polizas
-
-Crear una base de datos tipo tabla con estas propiedades exactas:
-
-- `policy_id` -> `Title`
-- `aseguradora` -> `Text`
-- `procedimientos_cubiertos` -> `Multi-select`
-- `exclusiones` -> `Multi-select`
-- `dias_carencia` -> `Number`
-- `documentos_requeridos` -> `Multi-select`
-
-## Prompts usados para crear las bases con Notion AI
-
-### Prompt para Casos Quirurgicos
-
-```text
-Crea una base de datos tipo tabla llamada Casos Quirurgicos para un sistema de preautorizacion quirurgica.
-
-Necesito estas columnas exactas y con estos tipos:
-
-- case_id: titulo
-- paciente: texto
-- aseguradora: texto
-- policy_id: texto
-- inicio_poliza: fecha
-- diagnostico: texto
-- procedimiento_solicitado: texto
-- fecha_solicitud: fecha
-- documentos_presentados: seleccion multiple
-- urgente: casilla de verificacion
-- estado: estado
-- resultado_final: texto
-- motivo_decision: texto
-- documentos_faltantes: seleccion multiple
-- confianza_extraccion: numero
-
-En la propiedad estado crea estas opciones exactas:
-Nuevo
-En analisis
-Preaprobado
-Pendiente por documentos
-Rechazado por exclusion
-Revision manual
-
-No agregues columnas extra. No cambies los nombres. Usa exactamente esos nombres.
+```powershell
+npm install
 ```
 
-### Prompt para Polizas
+Levantar la app:
 
-```text
-Crea una base de datos tipo tabla llamada Polizas para un sistema de preautorizacion quirurgica.
-
-Necesito estas columnas exactas y con estos tipos:
-
-- policy_id: titulo
-- aseguradora: texto
-- procedimientos_cubiertos: seleccion multiple
-- exclusiones: seleccion multiple
-- dias_carencia: numero
-- documentos_requeridos: seleccion multiple
-
-No agregues columnas extra. No cambies los nombres. Usa exactamente esos nombres.
+```powershell
+npm run dev
 ```
 
-## Conexion interna en Notion
+Lint:
 
-### Pasos realizados
-
-1. Abrir el panel de conexiones internas de Notion.
-2. Crear una conexion interna llamada `SurgiAuth`.
-3. Copiar el token de acceso de la conexion.
-4. Dar acceso a `Casos Quirurgicos` y `Polizas` desde la pestaña de acceso al contenido.
-
-### Seguridad
-
-Si el token se expone en el chat, en capturas o en commits, debe regenerarse inmediatamente.
-
-## Como obtener los IDs desde Notion
-
-Abrir la base en Notion y copiar la URL.
-
-Ejemplo:
-
-```text
-https://www.notion.so/35e1c005c8cc8090bea1cd5327817512?v=35e1c005c8cc801e97f8000c473808df&source=copy_link
+```powershell
+npm run lint
 ```
 
-El valor que se usa en `.env.local` es el primer bloque largo:
+Build:
 
-```env
-NOTION_CASES_DATA_SOURCE_ID=35e1c005c8cc8090bea1cd5327817512
+```powershell
+npm run build
 ```
 
-El valor `v=` corresponde a la vista, no a la base.
+Generar PDFs requeridos según Notion:
 
-## Comprobacion de conexion con Notion
-
-Una vez configurado `.env.local`, se puede probar:
-
-```text
-http://localhost:3000/api/notion/health
+```powershell
+npm run generate:required-pdfs
 ```
 
-Respuesta esperada cuando todo esta bien:
+## Rutas principales
 
-```json
-{
-  "ok": true,
-  "mode": "notion",
-  "config": {
-    "configured": true,
-    "hasToken": true,
-    "hasCasesDataSource": true,
-    "hasPoliciesDataSource": true,
-    "hasDocumentsDataSource": false
-  },
-  "message": "La conexion con Notion esta lista.",
-  "counts": {
-    "cases": 4,
-    "policies": 4
-  }
-}
-```
+- `/dashboard`
+- `/cases`
+- `/cases/new`
+- `/cases/[caseId]`
+- `/documents`
+- `/documents/new`
+- `/policies`
 
-## Problema que aparecio y como se resolvio
+## Endpoints principales
 
-### Problema
+- `GET /api/notion/health`
+- `POST /api/process-case`
+- `POST /api/documents`
+- `PUT /api/documents`
+- `POST /api/cases`
+- `POST /api/policies`
 
-Al consultar `Polizas`, Notion devolvia `object_not_found` aunque el ID se habia copiado desde la URL.
+## Cómo probar el sistema
 
-### Causa
+### Flujo general
 
-Notion separa `database_id` y `data_source_id`. La URL entrega el `database_id`, pero el query de filas usa `data_source_id`.
+1. Ejecuta `npm run dev`.
+2. Verifica la conexión en `/api/notion/health`.
+3. Entra a `/cases`.
+4. Abre un caso real.
+5. Si falta soporte, sube el documento desde `/documents/new`.
+6. Vuelve al caso.
+7. Presiona `Procesar caso`.
+8. Revisa el modal de procesamiento y la nueva decisión.
 
-### Solucion aplicada
+### Caso recomendado para demo
 
-Se actualizo [src/lib/notion.ts](C:\Users\ACER NITRO V15\Documents\GitHub\surgIAuthPD\src\lib\notion.ts) para:
+Caso de prueba listo:
 
-- recibir el ID de la URL
-- consultar la base con `notion.databases.retrieve`
-- extraer el `data_source_id`
-- ejecutar luego `notion.dataSources.query`
+- `CASE-20260514-M5L0I`
+- paciente: `Darwin Valdiviezo`
+- aseguradora: `Sanitas`
+- póliza: `POL-456321`
+- diagnóstico: `Colelitiasis sintomática`
+- procedimiento: `Colecistectomía laparoscópica`
+- estado actual: `Pendiente por documentos`
+- faltante principal: `Consentimiento informado`
 
-Con eso ya no es necesario buscar manualmente el `data_source_id` en la interfaz de Notion.
+### Pasos exactos para esta prueba
 
-## Endpoints disponibles
+1. Busca `CASE-20260514-M5L0I` en `Casos`.
+2. Abre el detalle y confirma que el faltante es `Consentimiento informado`.
+3. Ve a `Subir documento`.
+4. Selecciona:
+   - caso: `CASE-20260514-M5L0I`
+   - tipo documental: `Consentimiento informado`
+5. Sube el PDF generado para esta prueba.
+6. Guarda el documento.
+7. Regresa al detalle del caso.
+8. Presiona `Procesar caso`.
+9. Valida el resultado y la explicación del modal.
 
-### `GET /api/notion/health`
+## PDFs de prueba generados para ese caso
 
-Sirve para validar si la conexion con Notion esta lista.
+Se dejaron estos archivos en:
 
-### `GET /api/process-case`
+[generated-documents/CASE-20260514-M5L0I](</C:/Users/ACER NITRO V15/Documents/GitHub/surgIAuthPD/generated-documents/CASE-20260514-M5L0I>)
 
-Devuelve un mensaje de ayuda y un ejemplo de payload.
+Archivos:
 
-### `POST /api/process-case`
+- `consentimiento-informado.pdf`
+- `guia-de-prueba-del-caso.pdf`
 
-Procesa un caso.
+Uso recomendado:
 
-Payload:
+- `consentimiento-informado.pdf`
+  Súbelo al expediente para cubrir el faltante real.
+- `guia-de-prueba-del-caso.pdf`
+  Compártelo con cualquier persona que vaya a probar el sistema para que siga el flujo sin perderse.
 
-```json
-{
-  "caseId": "CQ-2026-001"
-}
-```
+## Qué no subir al repositorio
 
-Lo que hace:
+El `.gitignore` ya está preparado para excluir:
 
-1. busca el caso en Notion
-2. busca la poliza asociada
-3. ejecuta la extraccion inicial
-4. aplica reglas de negocio
-5. actualiza la decision en la pagina del caso
+- `.env.local`
+- `node_modules`
+- `.next`
+- logs
+- archivos temporales
+- PDFs generados dentro de `generated-documents/`
 
-## Campos que actualiza en Notion
+Se conserva únicamente `generated-documents/README.md` como referencia.
 
-Cuando se procesa un caso, se actualizan estos campos de `Casos Quirurgicos`:
+## Próximas mejoras recomendadas
 
-- `estado`
-- `resultado_final`
-- `motivo_decision`
-- `documentos_faltantes`
-- `confianza_extraccion`
-
-## Flujo de prueba recomendado
-
-1. Levantar la app con `npm.cmd run dev`
-2. Probar `GET /api/notion/health`
-3. Abrir `/dashboard`
-4. Ejecutar `POST /api/process-case` con un `case_id` real
-5. Verificar que la decision se escriba en Notion
-
-## Progreso real del desarrollo
-
-### Etapa 1
-
-- Se creo el `README` inicial del proyecto
-- Se definio el stack principal
-- Se crearon ramas separadas para trabajo del equipo
-
-### Etapa 2
-
-- Se monto la base de `Next.js`
-- Se creo la estructura del proyecto
-- Se implemento el dashboard inicial
-- Se agrego el endpoint base para procesamiento
-
-### Etapa 3
-
-- Se implementaron tipos de dominio
-- Se agregaron mocks
-- Se construyo el motor de reglas
-- Se validaron cobertura, exclusiones, faltantes y carencia
-
-### Etapa 4
-
-- Se integro Notion
-- Se agrego `GET /api/notion/health`
-- Se implemento lectura de casos y polizas
-- Se implemento escritura de decisiones en casos
-- Se resolvio el manejo de `database_id` y `data_source_id`
-
-### Etapa 5
-
-- Se mejoro la logica de cobertura para aceptar categorias quirurgicas como `Cirugia General`
-- Se agrego una taxonomia inicial de procedimientos hacia categorias
-- Se mejoro el cruce de documentos requeridos contra documentos presentados usando alias y equivalencias
-
-### Etapa 6
-
-- Se agrego una integracion base con `Gemini 2.5 Flash`
-- La extraccion de procedimiento, diagnostico y faltantes puede venir de Gemini
-- Se dejo fallback a extraccion mock cuando la clave no existe o la llamada falla
-
-## Siguiente paso recomendado
-
-El siguiente bloque de trabajo recomendado es:
-
-1. Probar `POST /api/process-case` con casos reales
-2. Ajustar los datos reales de Notion para que produzcan decisiones consistentes
-3. Reemplazar la extraccion mock por Gemini u OpenAI
-4. Mejorar la UI del detalle de caso
-
-## Nota de seguridad
-
-Si una clave de API o token se expone en chat, capturas, commits o archivos compartidos, debe regenerarse de inmediato y reemplazarse en `.env.local`.
-
-## Referencias tecnicas
-
-- [Working with databases](https://developers.notion.com/guides/data-apis/working-with-databases)
-- [Retrieve a database](https://developers.notion.com/reference/retrieve-a-database)
-- [Query a data source](https://developers.notion.com/reference/query-a-data-source)
-- [Internal integrations](https://developers.notion.com/guides/get-started/internal-integrations)
+1. Terminar de ordenar la arquitectura hacia `features` y `shared`.
+2. Mejorar la taxonomía de diagnósticos y procedimientos.
+3. Añadir más plantillas de PDF por tipo documental.
+4. Incorporar trazabilidad de eventos por caso.
+5. Reintroducir IA externa solo cuando la cuenta y la cuota estén listas para producción.
