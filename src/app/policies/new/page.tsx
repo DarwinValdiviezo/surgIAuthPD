@@ -2,7 +2,8 @@ import { AppFooter } from "@/components/app-footer";
 import { AppHeader } from "@/components/app-header";
 import { AppSidebar } from "@/components/app-sidebar";
 import styles from "@/components/entity-form.module.css";
-import { PolicyCreateForm } from "@/components/policy-create-form";
+import { PolicyCreateForm } from "@/features/policies/components/policy-create-form";
+import { workspaceNavigationItems } from "@/lib/app-navigation";
 import { getDataSourceMode } from "@/lib/case-service";
 
 export default async function NewPolicyPage() {
@@ -12,14 +13,7 @@ export default async function NewPolicyPage() {
         <AppSidebar
           variant="dashboard"
           activeKey="polizas"
-          items={[
-            { key: "dashboard", label: "Dashboard", href: "/dashboard" },
-            { key: "casos", label: "Casos", href: "/cases" },
-            { key: "polizas", label: "Polizas", href: "/policies" },
-            { key: "documentos", label: "Documentos", href: "/documents" },
-            { key: "config", label: "Configuracion", href: "/settings" },
-            { key: "auditoria", label: "Auditoria", href: "/audit" },
-          ]}
+          items={[...workspaceNavigationItems]}
           profileName="Darwin Valdiviezo"
           profileRole="Acceso administrador"
         />
@@ -31,7 +25,7 @@ export default async function NewPolicyPage() {
               searchPlaceholder="Buscar una poliza existente..."
               searchTargetPath="/policies"
               systemStatusLabel="Origen:"
-              systemStatusValue={getDataSourceMode() === "notion" ? "Notion activa" : "Modo mock"}
+              systemStatusValue={getDataSourceMode() === "notion" ? "Notion activa" : "Notion no configurada"}
             />
 
             <section className={styles.headerBlock}>

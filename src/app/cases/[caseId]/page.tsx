@@ -4,9 +4,10 @@ import { AppFooter } from "@/components/app-footer";
 import { AppHeader } from "@/components/app-header";
 import { AppSidebar } from "@/components/app-sidebar";
 import { DashboardStatusPill } from "@/components/dashboard-status-pill";
-import { ProcessCaseButton } from "@/components/process-case-button";
+import { ProcessCaseButton } from "@/features/cases/components/process-case-button";
+import { workspaceNavigationItems } from "@/lib/app-navigation";
 import { evaluateSurgicalCase } from "@/lib/case-evaluation";
-import { findCaseById } from "@/lib/case-service";
+import { findCaseById, getDataSourceMode } from "@/lib/case-service";
 import styles from "./detail.module.css";
 
 type CaseDetailPageProps = {
@@ -24,32 +25,30 @@ function getInitials(name: string) {
     .join("");
 }
 
-function getDocumentStateClass(status: string, classes: Record<string, string>) {
-  const normalized = status.trim().toLowerCase();
-
-  if (normalized === "procesado" || normalized === "disponible") {
-    return classes.documentReady;
-  }
-
-  if (normalized === "pendiente") {
-    return classes.documentPending;
-  }
-
-  return classes.documentAlert;
-}
-
-function getCheckClass(value: boolean, classes: Record<string, string>) {
-  return value ? classes.checkOk : classes.checkPending;
-}
-
 const checkLabels = {
   policyFound: "Poliza encontrada",
-  confidenceAccepted: "Confianza aceptada",
+  confidenceAccepted: "Lectura suficiente para decidir",
   waitingPeriodMet: "Carencia cumplida",
   covered: "Cobertura valida",
   excluded: "Sin exclusion aplicable",
   documentsComplete: "Documentacion completa",
 } as const;
+
+function isCheckPassing(key: keyof typeof checkLabels, value: boolean) {
+  if (key === "excluded") {
+    return !value;
+  }
+
+  return value;
+}
+
+function getCheckCopy(key: keyof typeof checkLabels, value: boolean) {
+  if (key === "excluded") {
+    return value ? "Hay exclusion aplicable" : "Cumplido";
+  }
+
+  return value ? "Cumplido" : "Requiere atencion";
+}
 
 export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
   const { caseId } = await params;
@@ -59,9 +58,8 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
     notFound();
   }
 
-  const evaluation = await evaluateSurgicalCase(surgicalCase, { preferAI: true });
+  const evaluation = await evaluateSurgicalCase(surgicalCase);
   const { case: caseData, policy, extraction, documents, decision } = evaluation;
-  const confidence = Math.round(extraction.confidence * 100);
 
   return (
     <div className={styles.page}>
@@ -69,237 +67,170 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
         <AppSidebar
           variant="dashboard"
           activeKey="casos"
-          items={[
-            { key: "dashboard", label: "Dashboard", href: "/dashboard" },
-            { key: "casos", label: "Casos", href: "/cases" },
-            { key: "polizas", label: "Polizas", href: "/policies" },
-            { key: "documentos", label: "Documentos", href: "/documents" },
-            { key: "config", label: "Configuracion", href: "/settings" },
-            { key: "auditoria", label: "Auditoria", href: "/audit" },
-          ]}
+          items={[...workspaceNavigationItems]}
           profileName="Darwin Valdiviezo"
           profileRole="Acceso administrador"
         />
 
         <main className={styles.main}>
-          <div className={styles.canvas}>
+          <div className={styles.fullWidthHeader}>
             <AppHeader
               variant="dashboard"
               searchPlaceholder={`Explorar caso ${caseData.caseId}...`}
               searchTargetPath="/cases"
               systemStatusLabel="Caso actual:"
-              systemStatusValue={caseData.isUrgent ? "Urgente" : "Programado"}
+              systemStatusValue={caseData.isUrgent ? "Urgente" : getDataSourceMode() === "notion" ? "Notion activa" : "No configurado"}
             />
+          </div>
 
+          <div className={styles.canvas}>
             <section className={styles.hero}>
-              <div className={styles.heroLeft}>
-                <Link href="/cases" className={styles.backLink}>
-                  Volver a casos
-                </Link>
-                <div className={styles.identity}>
-                  <div className={styles.avatar}>{getInitials(caseData.patientName)}</div>
-                  <div>
-                    <p className={styles.caseLabel}>Caso {caseData.caseId}</p>
-                    <h1 className={styles.patientName}>{caseData.patientName}</h1>
-                    <div className={styles.metaRow}>
-                      <span>{caseData.insurerName}</span>
-                      <span>Poliza {caseData.policyId}</span>
-                      <span>Solicitud {caseData.requestDate}</span>
-                      <span>{caseData.isUrgent ? "Prioridad alta" : "Flujo regular"}</span>
-                    </div>
-                  </div>
+              <div className={styles.heroIdentity}>
+                <div className={styles.avatar}>{getInitials(caseData.patientName)}</div>
+                <div>
+                  <p className={styles.caseLabel}>Caso {caseData.caseId}</p>
+                  <h1 className={styles.patientName}>{caseData.patientName}</h1>
+                  <p className={styles.metaCopy}>
+                    {caseData.insurerName} · Poliza {caseData.policyId} · Solicitud {caseData.requestDate}
+                  </p>
                 </div>
               </div>
 
-              <div className={styles.heroRight}>
+              <div className={styles.heroActions}>
                 <DashboardStatusPill status={decision.status} className={styles.statusPill} />
-                <div className={styles.processWrap}>
+                <div className={styles.actionsRow}>
+                  <Link href="/cases" className={styles.secondaryAction}>
+                    Volver a casos
+                  </Link>
+                  <Link href={`/documents/new?caseId=${encodeURIComponent(caseData.caseId)}`} className={styles.secondaryAction}>
+                    Subir documento
+                  </Link>
                   <ProcessCaseButton caseId={caseData.caseId} />
                 </div>
               </div>
             </section>
 
             <section className={styles.layout}>
-              <div className={styles.primaryColumn}>
-                <article className={styles.card}>
-                  <div className={styles.cardHeader}>
-                    <div>
-                      <p className={styles.eyebrow}>Resumen</p>
-                      <h2 className={styles.cardTitle}>Solicitud clinica y administrativa</h2>
-                    </div>
+              <article className={styles.card}>
+                <h2 className={styles.cardTitle}>Resumen del caso</h2>
+                <div className={styles.infoGrid}>
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}>Diagnostico</span>
+                    <p className={styles.infoValue}>{caseData.diagnosis}</p>
                   </div>
-                  <div className={styles.cardBody}>
-                    <div className={styles.summaryGrid}>
-                      <div className={styles.summaryItem}>
-                        <span className={styles.itemLabel}>Diagnostico</span>
-                        <p className={styles.itemValue}>{caseData.diagnosis}</p>
-                      </div>
-                      <div className={styles.summaryItem}>
-                        <span className={styles.itemLabel}>Procedimiento solicitado</span>
-                        <p className={styles.itemValue}>{caseData.requestedProcedure}</p>
-                      </div>
-                      <div className={styles.summaryItem}>
-                        <span className={styles.itemLabel}>Inicio de poliza</span>
-                        <p className={styles.itemValue}>{caseData.policyStartDate}</p>
-                      </div>
-                      <div className={styles.summaryItem}>
-                        <span className={styles.itemLabel}>Documentos declarados</span>
-                        <p className={styles.itemValue}>
-                          {caseData.submittedDocuments.length > 0
-                            ? caseData.submittedDocuments.join(", ")
-                            : "No se registraron documentos declarados"}
-                        </p>
-                      </div>
-                    </div>
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}>Procedimiento</span>
+                    <p className={styles.infoValue}>{caseData.requestedProcedure}</p>
                   </div>
-                </article>
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}>Inicio de poliza</span>
+                    <p className={styles.infoValue}>{caseData.policyStartDate}</p>
+                  </div>
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}>Prioridad</span>
+                    <p className={styles.infoValue}>{caseData.isUrgent ? "Alta" : "Regular"}</p>
+                  </div>
+                </div>
+              </article>
 
-                <article className={styles.card}>
-                  <div className={styles.cardHeader}>
-                    <div>
-                      <p className={styles.eyebrow}>Poliza</p>
-                      <h2 className={styles.cardTitle}>Cobertura, carencia y exclusiones</h2>
-                    </div>
+              <article className={styles.card}>
+                <h2 className={styles.cardTitle}>Reglas de la poliza</h2>
+                <div className={styles.infoGrid}>
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}>Carencia</span>
+                    <p className={styles.infoValue}>{policy ? `${policy.waitingPeriodDays} dias` : "No disponible"}</p>
                   </div>
-                  <div className={styles.cardBody}>
-                    <div className={styles.summaryGrid}>
-                      <div className={styles.summaryItem}>
-                        <span className={styles.itemLabel}>Aseguradora</span>
-                        <p className={styles.itemValue}>{policy?.insurerName ?? "No encontrada"}</p>
-                      </div>
-                      <div className={styles.summaryItem}>
-                        <span className={styles.itemLabel}>Dias de carencia</span>
-                        <p className={styles.itemValue}>{policy ? `${policy.waitingPeriodDays} dias` : "No disponible"}</p>
-                      </div>
-                      <div className={styles.summaryItem}>
-                        <span className={styles.itemLabel}>Coberturas</span>
-                        <p className={styles.itemValue}>
-                          {policy?.coveredProcedures.length ? policy.coveredProcedures.join(", ") : "No disponible"}
-                        </p>
-                      </div>
-                      <div className={styles.summaryItem}>
-                        <span className={styles.itemLabel}>Exclusiones</span>
-                        <p className={styles.itemValue}>
-                          {policy?.exclusions.length ? policy.exclusions.join(", ") : "No disponible"}
-                        </p>
-                      </div>
-                    </div>
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}>Cobertura</span>
+                    <p className={styles.infoValue}>
+                      {policy?.coveredProcedures.length ? policy.coveredProcedures.join(", ") : "No disponible"}
+                    </p>
                   </div>
-                </article>
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}>Exclusiones</span>
+                    <p className={styles.infoValue}>{policy?.exclusions.length ? policy.exclusions.join(", ") : "No disponible"}</p>
+                  </div>
+                </div>
+              </article>
 
-                <article className={styles.card}>
-                  <div className={styles.cardHeader}>
-                    <div>
-                      <p className={styles.eyebrow}>Documentos</p>
-                      <h2 className={styles.cardTitle}>Expediente asociado al caso</h2>
-                    </div>
-                  </div>
-                  <div className={styles.cardBody}>
-                    {documents.length > 0 ? (
-                      <div className={styles.documentsList}>
-                        {documents.map((document) => (
-                          <article key={document.documentId} className={styles.documentItem}>
-                            <div className={styles.documentTop}>
-                              <div>
-                                <p className={styles.documentName}>{document.documentType}</p>
-                                <p className={styles.documentMeta}>
-                                  {document.documentId} - {document.caseId}
-                                </p>
-                              </div>
-                              <span className={getDocumentStateClass(document.documentStatus, styles)}>
-                                {document.documentStatus}
-                              </span>
-                            </div>
-                            <p className={styles.documentText}>
-                              {document.extractedText || "Documento sin texto extraido disponible."}
-                            </p>
-                          </article>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className={styles.emptyCopy}>No hay documentos asociados a este caso.</p>
-                    )}
-                  </div>
-                </article>
-              </div>
-
-              <aside className={styles.sideColumn}>
-                <article className={styles.card}>
-                  <div className={styles.cardHeader}>
-                    <div>
-                      <p className={styles.eyebrow}>Analisis IA</p>
-                      <h2 className={styles.cardTitle}>Lectura del agente</h2>
-                    </div>
-                  </div>
-                  <div className={styles.cardBody}>
-                    <div className={styles.aiHeader}>
-                      <div className={styles.aiConfidence}>{confidence}%</div>
-                      <div>
-                        <p className={styles.aiTitle}>{extraction.source === "gemini" ? "Gemini 2.5 Flash" : "Fallback mock"}</p>
-                        <p className={styles.aiCopy}>Fuente usada para interpretar diagnostico, procedimiento y faltantes.</p>
-                      </div>
-                    </div>
-
-                    <div className={styles.aiFacts}>
-                      <div className={styles.summaryItem}>
-                        <span className={styles.itemLabel}>Procedimiento detectado</span>
-                        <p className={styles.itemValue}>{extraction.detectedProcedure}</p>
-                      </div>
-                      <div className={styles.summaryItem}>
-                        <span className={styles.itemLabel}>Diagnostico detectado</span>
-                        <p className={styles.itemValue}>{extraction.detectedDiagnosis}</p>
-                      </div>
-                      <div className={styles.summaryItem}>
-                        <span className={styles.itemLabel}>Faltantes inferidos</span>
-                        <p className={styles.itemValue}>
-                          {extraction.missingDocuments.length > 0
-                            ? extraction.missingDocuments.join(", ")
-                            : "No se detectaron faltantes desde la extraccion"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-
-                <article className={styles.card}>
-                  <div className={styles.cardHeader}>
-                    <div>
-                      <p className={styles.eyebrow}>Decision</p>
-                      <h2 className={styles.cardTitle}>Resultado del caso</h2>
-                    </div>
-                  </div>
-                  <div className={styles.cardBody}>
-                    <div className={styles.decisionBlock}>
-                      <DashboardStatusPill status={decision.status} className={styles.decisionPill} />
-                      <p className={styles.decisionReason}>{decision.reason}</p>
-                    </div>
-
-                    {decision.missingDocuments.length > 0 ? (
-                      <div className={styles.missingBlock}>
-                        <span className={styles.itemLabel}>Documentos faltantes</span>
-                        <div className={styles.tagList}>
-                          {decision.missingDocuments.map((item) => (
-                            <span key={item} className={styles.missingTag}>
-                              {item}
-                            </span>
-                          ))}
+              <article className={styles.card}>
+                <div className={styles.cardHeaderRow}>
+                  <h2 className={styles.cardTitle}>Documentos del expediente</h2>
+                  <Link href={`/documents/new?caseId=${encodeURIComponent(caseData.caseId)}`} className={styles.inlineAction}>
+                    Agregar documento
+                  </Link>
+                </div>
+                {documents.length > 0 ? (
+                  <div className={styles.documentList}>
+                    {documents.map((document) => (
+                      <div key={document.documentId} className={styles.documentItem}>
+                        <div>
+                          <p className={styles.documentTitle}>{document.documentType}</p>
+                          <p className={styles.documentMeta}>{document.documentStatus}</p>
+                        </div>
+                        <div className={styles.documentLinks}>
+                          {document.fileUrl ? (
+                            <a href={document.fileUrl} target="_blank" rel="noreferrer" className={styles.inlineAction}>
+                              Ver archivo
+                            </a>
+                          ) : null}
+                          <Link href={`/documents/${document.documentId}/edit`} className={styles.inlineAction}>
+                            Editar
+                          </Link>
                         </div>
                       </div>
-                    ) : null}
+                    ))}
+                  </div>
+                ) : (
+                  <p className={styles.emptyCopy}>No hay documentos asociados a este caso todavia.</p>
+                )}
+              </article>
 
-                    <div className={styles.checksGrid}>
-                      {Object.entries(decision.checks).map(([key, value]) => (
-                        <article key={key} className={getCheckClass(value, styles)}>
-                          <p className={styles.checkTitle}>{checkLabels[key as keyof typeof checkLabels]}</p>
-                          <p className={styles.checkValue}>{value ? "Cumplido" : "Pendiente"}</p>
-                        </article>
+              <article className={styles.card}>
+                <h2 className={styles.cardTitle}>Resultado actual</h2>
+                <div className={styles.resultTop}>
+                  <DashboardStatusPill status={decision.status} className={styles.resultPill} />
+                  <p className={styles.resultReason}>{decision.reason}</p>
+                </div>
+
+                {decision.missingDocuments.length > 0 ? (
+                  <div className={styles.missingBlock}>
+                    <span className={styles.infoLabel}>Documentos que faltan</span>
+                    <div className={styles.tagList}>
+                      {decision.missingDocuments.map((item) => (
+                        <span key={item} className={styles.tag}>
+                          {item}
+                        </span>
                       ))}
                     </div>
                   </div>
-                </article>
-              </aside>
-            </section>
+                ) : null}
 
+                <div className={styles.checksGrid}>
+                  {Object.entries(decision.checks).map(([key, value]) => {
+                    const typedKey = key as keyof typeof checkLabels;
+                    const passing = isCheckPassing(typedKey, value);
+
+                    return (
+                      <div key={key} className={styles.checkRow}>
+                        <span className={styles.checkLabel}>{checkLabels[typedKey]}</span>
+                        <span className={passing ? styles.checkOk : styles.checkWarn}>{getCheckCopy(typedKey, value)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className={styles.readingBlock}>
+                  <span className={styles.infoLabel}>Lectura del sistema</span>
+                  <p className={styles.readingCopy}>
+                    Procedimiento detectado: {extraction.detectedProcedure}. Diagnostico detectado: {extraction.detectedDiagnosis}.
+                  </p>
+                </div>
+              </article>
+            </section>
+          </div>
+
+          <div className={styles.fullWidthFooter}>
             <AppFooter compact />
           </div>
         </main>

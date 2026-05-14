@@ -1,5 +1,6 @@
-import { mockCases, mockPolicies } from "@/lib/mock-data";
 import {
+  archivePageInNotion,
+  attachFileToDocumentInNotion,
   createCaseInNotion,
   createDocumentInNotion,
   createPolicyInNotion,
@@ -8,9 +9,16 @@ import {
   queryCasesFromNotion,
   queryDocumentsFromNotion,
   queryPoliciesFromNotion,
+  updateDocumentInNotion,
   updateCaseDecisionInNotion,
 } from "@/lib/notion";
 import { CaseDocument, DecisionResult, Policy, SurgicalCase } from "@/types/domain";
+
+type UploadedDocumentFile = {
+  bytes: Uint8Array;
+  filename: string;
+  contentType: string;
+};
 
 function normalizeIdentifier(value: string): string {
   return value.trim().toLowerCase();
@@ -34,13 +42,13 @@ function getValidCacheEntry<T>(entry: { expiresAt: number; data: T } | null): T 
   return entry.data;
 }
 
-export function getDataSourceMode(): "notion" | "mock" {
-  return isNotionConfigured() ? "notion" : "mock";
+export function getDataSourceMode(): "notion" | "unconfigured" {
+  return isNotionConfigured() ? "notion" : "unconfigured";
 }
 
 export async function listCases(): Promise<SurgicalCase[]> {
   if (!isNotionConfigured()) {
-    return mockCases;
+    return [];
   }
 
   const cachedCases = getValidCacheEntry(casesCache);
@@ -56,8 +64,8 @@ export async function listCases(): Promise<SurgicalCase[]> {
     };
     return cases;
   } catch (error) {
-    console.error("Fallo al consultar casos en Notion, se usaran mocks.", error);
-    return mockCases;
+    console.error("Fallo al consultar casos en Notion.", error);
+    return [];
   }
 }
 
@@ -68,7 +76,7 @@ export async function findCaseById(caseId: string): Promise<SurgicalCase | undef
 
 export async function listPolicies(): Promise<Policy[]> {
   if (!isNotionConfigured()) {
-    return mockPolicies;
+    return [];
   }
 
   const cachedPolicies = getValidCacheEntry(policiesCache);
@@ -84,8 +92,8 @@ export async function listPolicies(): Promise<Policy[]> {
     };
     return policies;
   } catch (error) {
-    console.error("Fallo al consultar polizas en Notion, se usaran mocks.", error);
-    return mockPolicies;
+    console.error("Fallo al consultar polizas en Notion.", error);
+    return [];
   }
 }
 
@@ -121,6 +129,13 @@ export async function findDocumentsByCaseId(caseId: string): Promise<CaseDocumen
   );
 }
 
+export async function findDocumentById(documentId: string): Promise<CaseDocument | undefined> {
+  const documents = await listDocuments();
+  const normalizedDocumentId = normalizeIdentifier(documentId);
+
+  return documents.find((item) => normalizeIdentifier(item.documentId) === normalizedDocumentId);
+}
+
 export async function findPolicyById(policyId: string): Promise<Policy | undefined> {
   const policies = await listPolicies();
   const normalizedPolicyId = normalizeIdentifier(policyId);
@@ -133,9 +148,9 @@ export async function findPolicyById(policyId: string): Promise<Policy | undefin
 export async function saveCaseDecision(
   surgicalCase: SurgicalCase,
   decision: DecisionResult,
-): Promise<"notion" | "mock" | "notion_failed"> {
+): Promise<"notion" | "notion_failed"> {
   if (!isNotionConfigured() || !surgicalCase.notionPageId) {
-    return "mock";
+    return "notion_failed";
   }
 
   try {
@@ -169,14 +184,60 @@ export async function createPolicy(policy: Policy): Promise<Policy> {
   return createdPolicy;
 }
 
-export async function createDocument(document: CaseDocument): Promise<CaseDocument> {
+export async function createDocument(
+  document: CaseDocument,
+  uploadedFile?: UploadedDocumentFile,
+): Promise<CaseDocument> {
   if (!isNotionConfigured()) {
     throw new Error("La creacion de documentos requiere una conexion activa con Notion.");
   }
 
   const createdDocument = await createDocumentInNotion(document);
+
+  if (uploadedFile && createdDocument.notionPageId) {
+    try {
+      const attachmentUrl = await attachFileToDocumentInNotion(createdDocument.notionPageId, uploadedFile, {
+        documentId: createdDocument.documentId,
+        documentType: createdDocument.documentType,
+      });
+
+      createdDocument.fileUrl = attachmentUrl || createdDocument.fileUrl;
+      createdDocument.storage = "notion";
+    } catch (error) {
+      await archivePageInNotion(createdDocument.notionPageId).catch(() => {
+        console.error(`No se pudo revertir el documento parcial ${createdDocument.documentId} en Notion.`);
+      });
+      throw error;
+    }
+  }
+
   documentsCache = null;
   return createdDocument;
+}
+
+export async function updateDocument(
+  document: CaseDocument,
+  uploadedFile?: UploadedDocumentFile,
+): Promise<CaseDocument> {
+  if (!isNotionConfigured()) {
+    throw new Error("La actualizacion de documentos requiere una conexion activa con Notion.");
+  }
+
+  const updatedDocument = await updateDocumentInNotion(document);
+
+  if (uploadedFile && updatedDocument.notionPageId) {
+    const attachmentUrl = await attachFileToDocumentInNotion(updatedDocument.notionPageId, uploadedFile, {
+      documentId: updatedDocument.documentId,
+      documentType: updatedDocument.documentType,
+    });
+
+    updatedDocument.fileUrl = attachmentUrl || updatedDocument.fileUrl;
+    updatedDocument.storage = "notion";
+    await updateDocumentInNotion(updatedDocument);
+  }
+
+  documentsCache = null;
+  return updatedDocument;
 }
 
 export function getNotionSetupStatus() {

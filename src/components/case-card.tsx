@@ -1,6 +1,6 @@
 import { ExtractionSummary } from "@/components/extraction-summary";
 import Link from "next/link";
-import { ProcessCaseButton } from "@/components/process-case-button";
+import { ProcessCaseButton } from "@/features/cases/components/process-case-button";
 import { StatusBadge } from "@/components/status-badge";
 import { CaseEvaluation } from "@/types/domain";
 

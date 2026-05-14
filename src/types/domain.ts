@@ -39,6 +39,7 @@ export interface CaseDocument {
   fileUrl: string;
   documentStatus: string;
   extractedText: string;
+  storage?: "notion" | "external";
 }
 
 export interface ExtractionResult {
@@ -46,7 +47,7 @@ export interface ExtractionResult {
   detectedDiagnosis: string;
   missingDocuments: string[];
   confidence: number;
-  source?: "gemini" | "mock";
+  source?: "gemini" | "rules";
 }
 
 export interface DecisionResult {

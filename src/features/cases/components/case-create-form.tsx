@@ -3,11 +3,17 @@
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
 import { Policy } from "@/types/domain";
-import styles from "./entity-form.module.css";
+import styles from "@/components/entity-form.module.css";
 
 type CaseCreateFormProps = {
   policies: Policy[];
 };
+
+const diagnosisSuggestionsByProcedure: Array<{ procedure: string; diagnosis: string }> = [
+  { procedure: "Hernioplastia inguinal con malla", diagnosis: "Hernia inguinal derecha complicada" },
+  { procedure: "Colecistectomía laparoscópica", diagnosis: "Colelitiasis sintomática" },
+  { procedure: "Apendicectomía laparoscópica", diagnosis: "Apendicitis aguda" },
+];
 
 export function CaseCreateForm({ policies }: CaseCreateFormProps) {
   const router = useRouter();
@@ -16,13 +22,11 @@ export function CaseCreateForm({ policies }: CaseCreateFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [selectedPolicyId, setSelectedPolicyId] = useState(policies[0]?.policyId ?? "");
   const [formValues, setFormValues] = useState({
-    caseId: "",
     patientName: "",
     policyStartDate: new Date().toISOString().slice(0, 10),
     diagnosis: "",
     requestedProcedure: "",
     requestDate: new Date().toISOString().slice(0, 10),
-    submittedDocuments: "",
     isUrgent: false,
   });
 
@@ -30,6 +34,10 @@ export function CaseCreateForm({ policies }: CaseCreateFormProps) {
     () => policies.find((policy) => policy.policyId === selectedPolicyId),
     [policies, selectedPolicyId],
   );
+  const procedureOptions = selectedPolicy?.coveredProcedures.filter(Boolean) ?? [];
+  const diagnosisSuggestions = diagnosisSuggestionsByProcedure
+    .filter((item) => !formValues.requestedProcedure || item.procedure === formValues.requestedProcedure)
+    .map((item) => item.diagnosis);
 
   function updateField(name: string, value: string | boolean) {
     setFormValues((current) => ({
@@ -65,7 +73,7 @@ export function CaseCreateForm({ policies }: CaseCreateFormProps) {
       }
 
       setMessage(`Caso creado en Notion: ${data.case.caseId}`);
-      router.push(`/cases/${data.case.caseId}`);
+      router.push(`/documents/new?caseId=${encodeURIComponent(data.case.caseId)}`);
       router.refresh();
     } catch {
       setError("Ocurrio un error al crear el caso.");
@@ -78,21 +86,12 @@ export function CaseCreateForm({ policies }: CaseCreateFormProps) {
     <form className={styles.form} onSubmit={handleSubmit}>
       <div className={styles.grid}>
         <div className={styles.field}>
-          <label htmlFor="case-id">ID del caso</label>
-          <input
-            id="case-id"
-            value={formValues.caseId}
-            onChange={(event) => updateField("caseId", event.target.value)}
-            placeholder="Opcional, se genera automaticamente"
-          />
-        </div>
-
-        <div className={styles.field}>
           <label htmlFor="case-patient">Paciente</label>
           <input
             id="case-patient"
             value={formValues.patientName}
             onChange={(event) => updateField("patientName", event.target.value)}
+            placeholder="Nombre completo del paciente"
             required
           />
         </div>
@@ -102,7 +101,14 @@ export function CaseCreateForm({ policies }: CaseCreateFormProps) {
           <select
             id="case-policy"
             value={selectedPolicyId}
-            onChange={(event) => setSelectedPolicyId(event.target.value)}
+            onChange={(event) => {
+              const nextPolicyId = event.target.value;
+              setSelectedPolicyId(nextPolicyId);
+              setFormValues((current) => ({
+                ...current,
+                requestedProcedure: "",
+              }));
+            }}
             required
           >
             <option value="">Selecciona una poliza</option>
@@ -112,12 +118,6 @@ export function CaseCreateForm({ policies }: CaseCreateFormProps) {
               </option>
             ))}
           </select>
-        </div>
-
-        <div className={styles.field}>
-          <label htmlFor="case-insurer">Aseguradora</label>
-          <input id="case-insurer" value={selectedPolicy?.insurerName ?? ""} readOnly />
-          <small>Se completa automaticamente segun la poliza elegida.</small>
         </div>
 
         <div className={styles.field}>
@@ -144,34 +144,46 @@ export function CaseCreateForm({ policies }: CaseCreateFormProps) {
       </div>
 
       <div className={styles.field}>
-        <label htmlFor="case-diagnosis">Diagnostico</label>
-        <textarea
-          id="case-diagnosis"
-          value={formValues.diagnosis}
-          onChange={(event) => updateField("diagnosis", event.target.value)}
-          required
-        />
-      </div>
-
-      <div className={styles.field}>
         <label htmlFor="case-procedure">Procedimiento solicitado</label>
-        <textarea
+        <select
           id="case-procedure"
           value={formValues.requestedProcedure}
-          onChange={(event) => updateField("requestedProcedure", event.target.value)}
+          onChange={(event) => {
+            const nextProcedure = event.target.value;
+            const suggestedDiagnosis = diagnosisSuggestionsByProcedure.find((item) => item.procedure === nextProcedure)?.diagnosis;
+
+            setFormValues((current) => ({
+              ...current,
+              requestedProcedure: nextProcedure,
+              diagnosis: current.diagnosis || !suggestedDiagnosis ? current.diagnosis : suggestedDiagnosis,
+            }));
+          }}
           required
-        />
+        >
+          <option value="">Selecciona el procedimiento cubierto</option>
+          {procedureOptions.map((item) => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className={styles.field}>
-        <label htmlFor="case-documents">Documentos declarados</label>
+        <label htmlFor="case-diagnosis">Diagnostico</label>
         <input
-          id="case-documents"
-          value={formValues.submittedDocuments}
-          onChange={(event) => updateField("submittedDocuments", event.target.value)}
-          placeholder="Historia clínica, Orden médica, Consentimiento informado"
+          id="case-diagnosis"
+          list="case-diagnosis-options"
+          value={formValues.diagnosis}
+          onChange={(event) => updateField("diagnosis", event.target.value)}
+          placeholder="Selecciona o escribe el diagnostico"
+          required
         />
-        <small>Separa cada documento con coma.</small>
+        <datalist id="case-diagnosis-options">
+          {diagnosisSuggestions.map((item) => (
+            <option key={item} value={item} />
+          ))}
+        </datalist>
       </div>
 
       <label className={styles.checkboxRow}>
@@ -184,7 +196,7 @@ export function CaseCreateForm({ policies }: CaseCreateFormProps) {
       </label>
 
       <div className={styles.hintBox}>
-        Este formulario crea el registro del caso directamente en la base de Notion de `Casos`.
+        Registra el caso y continua de una vez a la carga de documentos del mismo expediente.
       </div>
 
       {message ? <div className={styles.messageOk}>{message}</div> : null}
@@ -192,7 +204,7 @@ export function CaseCreateForm({ policies }: CaseCreateFormProps) {
 
       <div className={styles.actions}>
         <button type="submit" className={styles.submitButton} disabled={isLoading}>
-          {isLoading ? "Creando..." : "Crear caso en Notion"}
+          {isLoading ? "Creando..." : "Crear caso"}
         </button>
         <button type="button" className={styles.secondaryButton} onClick={() => router.push("/cases")}>
           Volver a casos

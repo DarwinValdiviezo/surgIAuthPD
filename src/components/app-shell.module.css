@@ -53,6 +53,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  align-items: flex-start;
 }
 
 .headerActions {
@@ -203,9 +204,24 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  margin-top: 28px;
+  margin-top: auto;
   border-top: 1px solid #dde5ec;
-  padding-top: 20px;
+  background: #ffffff;
+  padding: 20px 0 0;
+}
+
+.footerBrand {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.footerTitle {
+  margin: 0;
+  color: #102235;
+  font-family: var(--font-display), Arial, sans-serif;
+  font-size: 18px;
+  font-weight: 700;
 }
 
 .footerCopy {
@@ -219,6 +235,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  align-items: center;
 }
 
 .footerLink {
@@ -226,6 +243,10 @@
   font-size: 13px;
   font-weight: 700;
   text-decoration: none;
+}
+
+.footerLink:hover {
+  color: #102235;
 }
 
 .dashboardSidebar {
@@ -389,35 +410,14 @@
 
 .dashboardHeaderRight {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.dashboardUtilityButton {
-  display: inline-flex;
-  width: 36px;
-  height: 36px;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  background: transparent;
-  color: #607080;
-  font-size: 12px;
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.dashboardDivider {
-  display: none;
-  width: 1px;
-  height: 32px;
-  background: #c4c6cf;
+  align-items: flex-start;
+  justify-content: flex-start;
 }
 
 .dashboardSystemStatus {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  flex-direction: column;
   gap: 10px;
 }
 
@@ -449,14 +449,8 @@
 @media (min-width: 768px) {
   .header {
     flex-direction: row;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-  }
-
-  .headerLeft {
-    flex-direction: row;
-    align-items: center;
-    flex-wrap: wrap;
   }
 
   .sidebar {
@@ -470,11 +464,13 @@
   }
 
   .dashboardHeaderRight {
+    align-items: center;
     justify-content: flex-end;
   }
 
-  .dashboardDivider {
-    display: block;
+  .dashboardSystemStatus {
+    flex-direction: row;
+    align-items: center;
   }
 
   .footer {

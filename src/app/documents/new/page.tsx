@@ -1,12 +1,20 @@
 import { AppFooter } from "@/components/app-footer";
 import { AppHeader } from "@/components/app-header";
 import { AppSidebar } from "@/components/app-sidebar";
-import { DocumentCreateForm } from "@/components/document-create-form";
 import styles from "@/components/entity-form.module.css";
-import { getDataSourceMode, listCases } from "@/lib/case-service";
+import { DocumentCreateForm } from "@/features/documents/components/document-create-form";
+import { workspaceNavigationItems } from "@/lib/app-navigation";
+import { getDataSourceMode, listCases, listPolicies } from "@/lib/case-service";
 
-export default async function NewDocumentPage() {
-  const cases = await listCases();
+type NewDocumentPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function NewDocumentPage({ searchParams }: NewDocumentPageProps) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const [cases, policies] = await Promise.all([listCases(), listPolicies()]);
+  const initialCaseId = typeof resolvedSearchParams.caseId === "string" ? resolvedSearchParams.caseId : "";
+  const sourceMode = getDataSourceMode();
 
   return (
     <div className={styles.page}>
@@ -14,39 +22,35 @@ export default async function NewDocumentPage() {
         <AppSidebar
           variant="dashboard"
           activeKey="documentos"
-          items={[
-            { key: "dashboard", label: "Dashboard", href: "/dashboard" },
-            { key: "casos", label: "Casos", href: "/cases" },
-            { key: "polizas", label: "Polizas", href: "/policies" },
-            { key: "documentos", label: "Documentos", href: "/documents" },
-            { key: "config", label: "Configuracion", href: "/settings" },
-            { key: "auditoria", label: "Auditoria", href: "/audit" },
-          ]}
+          items={[...workspaceNavigationItems]}
           profileName="Darwin Valdiviezo"
           profileRole="Acceso administrador"
         />
 
         <main className={styles.main}>
-          <div className={styles.canvas}>
+          <div className={styles.fullWidthHeader}>
             <AppHeader
               variant="dashboard"
-              searchPlaceholder="Buscar caso para adjuntar..."
-              searchTargetPath="/cases"
-              systemStatusLabel="Origen:"
-              systemStatusValue={getDataSourceMode() === "notion" ? "Notion activa" : "Modo mock"}
+              searchPlaceholder="Buscar documentos, casos o pacientes..."
+              searchTargetPath="/documents"
+              systemStatusLabel="Fuente documental:"
+              systemStatusValue={sourceMode === "notion" ? "Notion activa" : "Notion no configurada"}
+            />
+          </div>
+
+          <div className={styles.canvas}>
+            <AppHeader
+              title="Nuevo documento"
+              subtitle="Paso 2"
+              actions={[{ href: "/documents", label: "Volver a documentos", variant: "secondary" }]}
             />
 
-            <section className={styles.headerBlock}>
-              <h2 className={styles.title}>Nuevo documento</h2>
-              <p className={styles.subtitle}>
-                Crea un registro documental real en Notion y vincúlalo a un caso existente.
-              </p>
-            </section>
-
             <section className={styles.card}>
-              <DocumentCreateForm cases={cases} />
+              <DocumentCreateForm cases={cases} policies={policies} initialCaseId={initialCaseId} />
             </section>
+          </div>
 
+          <div className={styles.fullWidthFooter}>
             <AppFooter compact />
           </div>
         </main>
