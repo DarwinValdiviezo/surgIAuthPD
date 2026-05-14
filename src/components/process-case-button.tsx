@@ -45,7 +45,7 @@ export function ProcessCaseButton({ caseId }: { caseId: string }) {
         disabled={isLoading}
         className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
       >
-        {isLoading ? "Procesando..." : "Procesar caso"}
+        {isLoading ? "Procesando..." : "Procesar caso con IA"}
       </button>
       {message ? <p className="text-xs text-[var(--muted)]">{message}</p> : null}
     </div>

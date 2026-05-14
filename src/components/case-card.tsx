@@ -29,8 +29,8 @@ export function CaseCard({ evaluation }: { evaluation: CaseEvaluation }) {
           <dd>{surgicalCase.diagnosis}</dd>
         </div>
         <div>
-          <dt className="text-xs uppercase tracking-wide text-[var(--muted)]">Aseguradora</dt>
-          <dd>{surgicalCase.insurerName}</dd>
+          <dt className="text-xs uppercase tracking-wide text-[var(--muted)]">Documento</dt>
+          <dd>{surgicalCase.documentId}</dd>
         </div>
       </dl>
 

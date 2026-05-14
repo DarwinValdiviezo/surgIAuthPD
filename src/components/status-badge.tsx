@@ -1,17 +1,20 @@
 import { CaseStatus } from "@/types/domain";
-
-const statusStyles: Record<CaseStatus, string> = {
-  Nuevo: "bg-slate-100 text-slate-700",
-  "En analisis": "bg-cyan-100 text-cyan-800",
-  Preaprobado: "bg-emerald-100 text-emerald-800",
-  "Pendiente por documentos": "bg-amber-100 text-amber-800",
-  "Rechazado por exclusion": "bg-rose-100 text-rose-800",
-  "Revision manual": "bg-orange-100 text-orange-800",
-};
+import { statusColor } from "@/lib/status";
 
 export function StatusBadge({ status }: { status: CaseStatus }) {
   return (
-    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusStyles[status]}`}>
+    <span
+      style={{
+        background: `${statusColor(status)}1A`,
+        color: statusColor(status),
+        border: `1px solid ${statusColor(status)}44`,
+        borderRadius: 999,
+        padding: "4px 10px",
+        fontSize: 11,
+        fontWeight: 700,
+        display: "inline-flex",
+      }}
+    >
       {status}
     </span>
   );

@@ -7,28 +7,23 @@ import {
   queryPoliciesFromNotion,
   updateCaseDecisionInNotion,
 } from "@/lib/notion";
-import { CaseDocument, DecisionResult, Policy, SurgicalCase } from "@/types/domain";
+import { DecisionResult, Policy, SurgicalCase } from "@/types/domain";
 
 function normalizeIdentifier(value: string): string {
   return value.trim().toLowerCase();
 }
 
-const CACHE_TTL_MS = 30000;
+type PersistedMockCase = SurgicalCase;
 
-let casesCache: { expiresAt: number; data: SurgicalCase[] } | null = null;
-let policiesCache: { expiresAt: number; data: Policy[] } | null = null;
-let documentsCache: { expiresAt: number; data: CaseDocument[] } | null = null;
+const mockCasesStore: PersistedMockCase[] = mockCases.map((item) => ({ ...item, missingDocumentsText: [...item.missingDocumentsText], submittedDocuments: [...item.submittedDocuments] }));
+const mockPoliciesStore: Policy[] = mockPolicies.map((item) => ({ ...item, coveredProcedures: [...item.coveredProcedures], exclusions: [...item.exclusions], requiredDocuments: [...item.requiredDocuments] }));
 
-function getValidCacheEntry<T>(entry: { expiresAt: number; data: T } | null): T | null {
-  if (!entry) {
-    return null;
-  }
+function getMockCasesSnapshot(): SurgicalCase[] {
+  return mockCasesStore.map((item) => ({ ...item, missingDocumentsText: [...item.missingDocumentsText], submittedDocuments: [...item.submittedDocuments] }));
+}
 
-  if (Date.now() > entry.expiresAt) {
-    return null;
-  }
-
-  return entry.data;
+function getMockPoliciesSnapshot(): Policy[] {
+  return mockPoliciesStore.map((item) => ({ ...item, coveredProcedures: [...item.coveredProcedures], exclusions: [...item.exclusions], requiredDocuments: [...item.requiredDocuments] }));
 }
 
 export function getDataSourceMode(): "notion" | "mock" {
@@ -36,25 +31,12 @@ export function getDataSourceMode(): "notion" | "mock" {
 }
 
 export async function listCases(): Promise<SurgicalCase[]> {
-  if (!isNotionConfigured()) {
-    return mockCases;
-  }
-
-  const cachedCases = getValidCacheEntry(casesCache);
-  if (cachedCases) {
-    return cachedCases;
-  }
-
+  if (!isNotionConfigured()) return getMockCasesSnapshot();
   try {
-    const cases = await queryCasesFromNotion();
-    casesCache = {
-      expiresAt: Date.now() + CACHE_TTL_MS,
-      data: cases,
-    };
-    return cases;
+    return await queryCasesFromNotion();
   } catch (error) {
     console.error("Fallo al consultar casos en Notion, se usaran mocks.", error);
-    return mockCases;
+    return getMockCasesSnapshot();
   }
 }
 
@@ -64,81 +46,51 @@ export async function findCaseById(caseId: string): Promise<SurgicalCase | undef
 }
 
 export async function listPolicies(): Promise<Policy[]> {
-  if (!isNotionConfigured()) {
-    return mockPolicies;
-  }
-
-  const cachedPolicies = getValidCacheEntry(policiesCache);
-  if (cachedPolicies) {
-    return cachedPolicies;
-  }
-
+  if (!isNotionConfigured()) return getMockPoliciesSnapshot();
   try {
-    const policies = await queryPoliciesFromNotion();
-    policiesCache = {
-      expiresAt: Date.now() + CACHE_TTL_MS,
-      data: policies,
-    };
-    return policies;
+    return await queryPoliciesFromNotion();
   } catch (error) {
     console.error("Fallo al consultar polizas en Notion, se usaran mocks.", error);
-    return mockPolicies;
+    return getMockPoliciesSnapshot();
   }
 }
 
-export async function listDocuments(): Promise<CaseDocument[]> {
-  if (!isNotionConfigured()) {
-    return [];
-  }
-
-  const cachedDocuments = getValidCacheEntry(documentsCache);
-  if (cachedDocuments) {
-    return cachedDocuments;
-  }
-
+export async function listDocuments(): Promise<[]> {
+  if (!isNotionConfigured()) return [];
   try {
-    const documents = await queryDocumentsFromNotion();
-    documentsCache = {
-      expiresAt: Date.now() + CACHE_TTL_MS,
-      data: documents,
-    };
-    return documents;
-  } catch (error) {
-    console.error("Fallo al consultar documentos en Notion, se devolvera lista vacia.", error);
+    return await queryDocumentsFromNotion();
+  } catch {
     return [];
   }
-}
-
-export async function findDocumentsByCaseId(caseId: string): Promise<CaseDocument[]> {
-  const documents = await listDocuments();
-  const normalizedCaseId = normalizeIdentifier(caseId);
-
-  return documents.filter(
-    (item) => normalizeIdentifier(item.caseId) === normalizedCaseId,
-  );
 }
 
 export async function findPolicyById(policyId: string): Promise<Policy | undefined> {
   const policies = await listPolicies();
   const normalizedPolicyId = normalizeIdentifier(policyId);
-
-  return policies.find(
-    (item) => normalizeIdentifier(item.policyId) === normalizedPolicyId,
-  );
+  return policies.find((item) => normalizeIdentifier(item.policyId) === normalizedPolicyId);
 }
 
 export async function saveCaseDecision(
   surgicalCase: SurgicalCase,
   decision: DecisionResult,
 ): Promise<"notion" | "mock" | "notion_failed"> {
-  if (!isNotionConfigured() || !surgicalCase.notionPageId) {
+  if (!isNotionConfigured()) {
+    const mockCase = mockCasesStore.find((item) => item.caseId === surgicalCase.caseId);
+    if (mockCase) {
+      mockCase.status = decision.status;
+      mockCase.finalResult = decision.status;
+      mockCase.decisionReason = decision.reason;
+      mockCase.missingDocumentsText = [...decision.missingDocuments];
+      mockCase.extractionConfidence = decision.confidence;
+      mockCase.processedAt = new Date().toISOString();
+    }
     return "mock";
   }
 
+  if (!surgicalCase.notionPageId) return "notion_failed";
+
   try {
     await updateCaseDecisionInNotion(surgicalCase.notionPageId, decision);
-    casesCache = null;
-    documentsCache = null;
     return "notion";
   } catch (error) {
     console.error("Fallo al persistir la decision en Notion.", error);

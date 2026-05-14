@@ -1,10 +1,7 @@
 import { extractCaseDataWithGemini, isGeminiConfigured } from "@/lib/gemini";
-import { CaseDocument, ExtractionResult, SurgicalCase } from "@/types/domain";
+import { ExtractionResult, SurgicalCase } from "@/types/domain";
 
-function extractCaseDataFromMock(
-  surgicalCase: SurgicalCase,
-  documents: CaseDocument[],
-): ExtractionResult {
+function extractCaseDataFromMock(surgicalCase: SurgicalCase): ExtractionResult {
   const missingDocumentsByCase: Record<string, string[]> = {
     "CASE-002": ["orden_quirurgica", "copia_poliza"],
   };
@@ -19,38 +16,26 @@ function extractCaseDataFromMock(
   return {
     detectedProcedure: surgicalCase.requestedProcedure,
     detectedDiagnosis: surgicalCase.diagnosis,
-    missingDocuments: [
-      ...(missingDocumentsByCase[surgicalCase.caseId] ?? []),
-      ...documents
-        .filter((document) => ["pendiente", "faltante"].includes(document.documentStatus.trim().toLowerCase()))
-        .map((document) => document.documentType),
-    ],
+    missingDocuments: [...(missingDocumentsByCase[surgicalCase.caseId] ?? [])],
     confidence: confidenceByCase[surgicalCase.caseId] ?? 0.9,
     source: "mock",
   };
 }
 
-export async function extractCaseData(surgicalCase: SurgicalCase): Promise<ExtractionResult> {
-  return extractCaseDataForMode(surgicalCase, [], { preferAI: true });
-}
-
 export async function extractCaseDataForMode(
   surgicalCase: SurgicalCase,
-  documents: CaseDocument[],
-  options?: {
-    preferAI?: boolean;
-  },
+  options?: { preferAI?: boolean },
 ): Promise<ExtractionResult> {
   const preferAI = options?.preferAI ?? true;
 
   if (!preferAI || !isGeminiConfigured()) {
-    return extractCaseDataFromMock(surgicalCase, documents);
+    return extractCaseDataFromMock(surgicalCase);
   }
 
   try {
-    return await extractCaseDataWithGemini(surgicalCase, documents);
+    return await extractCaseDataWithGemini(surgicalCase);
   } catch (error) {
     console.error("Fallo la extraccion con Gemini, se usara fallback mock.", error);
-    return extractCaseDataFromMock(surgicalCase, documents);
+    return extractCaseDataFromMock(surgicalCase);
   }
 }

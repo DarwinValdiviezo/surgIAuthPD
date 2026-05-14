@@ -1,5 +1,7 @@
-import { AppHome } from "@/components/app-home";
+import { DashboardView } from "@/components/dashboard-view";
+
+export const dynamic = "force-dynamic";
 
 export default function HomePage() {
-  return <AppHome />;
+  return <DashboardView />;
 }

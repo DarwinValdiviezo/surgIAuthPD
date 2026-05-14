@@ -1,0 +1,15 @@
+export const uiLabels = {
+  caseId: "Case ID",
+  policyId: "Policy ID",
+  documentId: "Documento de identidad",
+  requestDate: "Fecha de solicitud",
+  policyStartDate: "Fecha de inicio",
+  waitingPeriodDays: "Dias de carencia",
+  coveredProcedures: "Procedimientos cubiertos",
+  submittedDocuments: "Documentos presentados",
+  requiredDocuments: "Documentos requeridos",
+  finalResult: "Resultado final",
+  decisionReason: "Motivo de decision",
+  extractionConfidence: "Confianza de extraccion",
+  processedAt: "Fecha de procesamiento",
+} as const;

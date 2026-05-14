@@ -10,25 +10,32 @@ export interface SurgicalCase {
   notionPageId?: string;
   caseId: string;
   patientName: string;
-  insurerName: string;
+  documentId: string;
   policyId: string;
-  policyStartDate: string;
   diagnosis: string;
   requestedProcedure: string;
   requestDate: string;
+  medicalReport: string;
   submittedDocuments: string[];
-  isUrgent: boolean;
   status: CaseStatus;
+  finalResult: string;
+  decisionReason: string;
+  missingDocumentsText: string[];
+  extractionConfidence: number;
+  processedAt: string;
 }
 
 export interface Policy {
   notionPageId?: string;
   policyId: string;
   insurerName: string;
+  plan: string;
+  policyStartDate: string;
   coveredProcedures: string[];
   exclusions: string[];
   waitingPeriodDays: number;
   requiredDocuments: string[];
+  specialRules: string;
 }
 
 export interface CaseDocument {

@@ -240,6 +240,14 @@
   gap: 14px;
 }
 
+.heroFull {
+  grid-template-columns: 1fr;
+}
+
+.workspaceFull {
+  grid-template-columns: 1fr;
+}
+
 .summaryCard {
   border: 1px solid #e2dbd2;
   border-radius: 18px;
@@ -521,6 +529,10 @@
   .summaryRail {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .heroFull .summaryRail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (min-width: 1200px) {
@@ -530,6 +542,18 @@
   }
 
   .summaryRail {
+    grid-template-columns: 1fr;
+  }
+
+  .heroFull {
+    grid-template-columns: 1fr;
+  }
+
+  .heroFull .summaryRail {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .workspaceFull {
     grid-template-columns: 1fr;
   }
 }
