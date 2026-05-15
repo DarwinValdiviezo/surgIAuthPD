@@ -1,0 +1,349 @@
+{
+  "info": {
+    "_postman_id": "e5de6a20-4f03-4f83-9269-1ecbe0a1b278",
+    "name": "SurgiAuth",
+    "description": "Coleccion de Postman para probar la base actual de SurgiAuth. Incluye salud de Notion y procesamiento de casos quirurgicos.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "caseId",
+      "value": "CQ-2026-001"
+    }
+  ],
+  "item": [
+    {
+      "name": "Root",
+      "item": [
+        {
+          "name": "Home Page",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            },
+            "description": "Carga la pagina principal del proyecto."
+          },
+          "response": []
+        },
+        {
+          "name": "Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dashboard"
+              ]
+            },
+            "description": "Carga el dashboard del MVP."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notion",
+      "item": [
+        {
+          "name": "Health Check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Respuesta JSON valida\", function () {",
+                  "  pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "const data = pm.response.json();",
+                  "",
+                  "pm.test(\"Incluye banderas de configuracion\", function () {",
+                  "  pm.expect(data).to.have.property(\"config\");",
+                  "  pm.expect(data.config).to.have.property(\"hasToken\");",
+                  "  pm.expect(data.config).to.have.property(\"hasCasesDataSource\");",
+                  "  pm.expect(data.config).to.have.property(\"hasPoliciesDataSource\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/notion/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "notion",
+                "health"
+              ]
+            },
+            "description": "Verifica si la conexion con Notion esta lista y si las bases configuradas responden correctamente."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Process Case",
+      "item": [
+        {
+          "name": "Process Case - Help",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const data = pm.response.json();",
+                  "",
+                  "pm.test(\"Devuelve ejemplo de payload\", function () {",
+                  "  pm.expect(data).to.have.property(\"example\");",
+                  "  pm.expect(data.example).to.have.property(\"caseId\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/process-case",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "process-case"
+              ]
+            },
+            "description": "Muestra el formato esperado para procesar un caso."
+          },
+          "response": []
+        },
+        {
+          "name": "Process Case - Dynamic",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Respuesta JSON valida\", function () {",
+                  "  pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "const data = pm.response.json();",
+                  "",
+                  "pm.test(\"Incluye decision\", function () {",
+                  "  pm.expect(data).to.have.property(\"decision\");",
+                  "  pm.expect(data.decision).to.have.property(\"status\");",
+                  "  pm.expect(data.decision).to.have.property(\"reason\");",
+                  "});",
+                  "",
+                  "pm.test(\"Incluye caso y poliza\", function () {",
+                  "  pm.expect(data).to.have.property(\"case\");",
+                  "  pm.expect(data).to.have.property(\"policy\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"caseId\": \"{{caseId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/process-case",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "process-case"
+              ]
+            },
+            "description": "Procesa un caso usando la variable {{caseId}}."
+          },
+          "response": []
+        },
+        {
+          "name": "Process Case - CQ-2026-001",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"caseId\": \"CQ-2026-001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/process-case",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "process-case"
+              ]
+            },
+            "description": "Ejemplo fijo para un caso real o de prueba con case_id CQ-2026-001."
+          },
+          "response": []
+        },
+        {
+          "name": "Process Case - Missing caseId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 400\", function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "const data = pm.response.json();",
+                  "",
+                  "pm.test(\"Devuelve mensaje de error\", function () {",
+                  "  pm.expect(data).to.have.property(\"error\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/process-case",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "process-case"
+              ]
+            },
+            "description": "Prueba de validacion cuando no se envia caseId."
+          },
+          "response": []
+        },
+        {
+          "name": "Process Case - Unknown caseId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 404\", function () {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "const data = pm.response.json();",
+                  "",
+                  "pm.test(\"Devuelve mensaje de error\", function () {",
+                  "  pm.expect(data).to.have.property(\"error\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"caseId\": \"CASE-NO-EXISTE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/process-case",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "process-case"
+              ]
+            },
+            "description": "Prueba de manejo de error cuando el case_id no existe."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
