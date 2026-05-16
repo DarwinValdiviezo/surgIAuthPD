@@ -2,7 +2,9 @@ import Link from "next/link";
 import { AppFooter } from "@/components/app-footer";
 import { AppHeader } from "@/components/app-header";
 import { AppSidebar } from "@/components/app-sidebar";
-import { DocumentsFilters } from "@/components/documents-filters";
+import { DocumentFilePreview } from "@/features/documents/components/document-file-preview";
+import { DocumentsFilters } from "@/features/documents/components/documents-filters";
+import { workspaceNavigationItems } from "@/lib/app-navigation";
 import { getDataSourceMode, listCases, listDocuments } from "@/lib/case-service";
 import styles from "./documents.module.css";
 
@@ -32,6 +34,18 @@ function getPreview(text: string) {
 
 function getDocumentTypeLabel(value: string) {
   return value.replace(/_/g, " ");
+}
+
+function getDocumentStorageLabel(storage?: "notion" | "external", fileUrl?: string) {
+  if (storage === "notion") {
+    return "Adjunto en Notion";
+  }
+
+  if (fileUrl) {
+    return "Enlace externo";
+  }
+
+  return "Sin archivo";
 }
 
 function buildDocumentsUrl(params: {
@@ -92,11 +106,6 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
   const startIndex = totalDocuments === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const endIndex = Math.min(currentPage * PAGE_SIZE, totalDocuments);
 
-  const processedCount = documents.filter((item) => item.documentStatus.toLowerCase() === "procesado").length;
-  const pendingCount = documents.filter((item) => item.documentStatus.toLowerCase() === "pendiente").length;
-  const availableCount = documents.filter((item) => item.documentStatus.toLowerCase() === "disponible").length;
-  const casesWithDocuments = new Set(documents.map((item) => item.caseId)).size;
-
   const caseOptions = Array.from(new Set(cases.map((item) => item.caseId))).sort();
   const typeOptions = Array.from(new Set(documents.map((item) => item.documentType))).sort();
 
@@ -106,27 +115,23 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
         <AppSidebar
           variant="dashboard"
           activeKey="documentos"
-          items={[
-            { key: "dashboard", label: "Dashboard", href: "/dashboard" },
-            { key: "casos", label: "Casos", href: "/cases" },
-            { key: "polizas", label: "Polizas", href: "/policies" },
-            { key: "documentos", label: "Documentos", href: "/documents" },
-            { key: "config", label: "Configuracion", href: "/settings" },
-            { key: "auditoria", label: "Auditoria", href: "/audit" },
-          ]}
+          items={[...workspaceNavigationItems]}
           profileName="Darwin Valdiviezo"
           profileRole="Acceso administrador"
         />
 
         <main className={styles.main}>
-          <div className={styles.canvas}>
+          <div className={styles.fullWidthHeader}>
             <AppHeader
               variant="dashboard"
               searchPlaceholder="Buscar documento por caso, tipo o estado..."
               searchTargetPath="/documents"
               systemStatusLabel="Fuente documental:"
-              systemStatusValue={getDataSourceMode() === "notion" ? "Notion activa" : "Modo mock"}
+              systemStatusValue={getDataSourceMode() === "notion" ? "Notion activa" : "Notion no configurada"}
             />
+          </div>
+
+          <div className={styles.canvas}>
 
             <section className={styles.headerBlock}>
               <div>
@@ -143,24 +148,6 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
                   Nuevo documento
                 </Link>
               </div>
-            </section>
-
-            <section className={styles.metrics}>
-              <article className={styles.metricCard}>
-                <span className={styles.metricLabel}>Documentos totales</span>
-                <strong className={styles.metricValue}>{documents.length}</strong>
-                <p className={styles.metricCopy}>Registros documentales actualmente visibles en el sistema.</p>
-              </article>
-              <article className={styles.metricCard}>
-                <span className={styles.metricLabel}>Procesados</span>
-                <strong className={styles.metricValue}>{processedCount}</strong>
-                <p className={styles.metricCopy}>Documentos con texto disponible para analisis y validacion.</p>
-              </article>
-              <article className={styles.metricCard}>
-                <span className={styles.metricLabel}>Casos vinculados</span>
-                <strong className={styles.metricValue}>{casesWithDocuments}</strong>
-                <p className={styles.metricCopy}>Expedientes quirurgicos con al menos un soporte cargado.</p>
-              </article>
             </section>
 
             <DocumentsFilters
@@ -198,9 +185,7 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
                             <td>
                               <div className={styles.documentCell}>
                                 <strong className={styles.documentId}>{document.documentId}</strong>
-                                <span className={styles.documentMeta}>
-                                  {document.fileUrl ? "Con enlace de archivo" : "Sin enlace de archivo"}
-                                </span>
+                                <span className={styles.documentMeta}>{getDocumentStorageLabel(document.storage, document.fileUrl)}</span>
                               </div>
                             </td>
                             <td>
@@ -220,13 +205,10 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
                                 <Link href={`/cases/${document.caseId}`} className={styles.openButton}>
                                   Abrir caso
                                 </Link>
-                                {document.fileUrl ? (
-                                  <a href={document.fileUrl} target="_blank" rel="noreferrer" className={styles.secondaryAction}>
-                                    Ver archivo
-                                  </a>
-                                ) : (
-                                  <span className={styles.disabledAction}>Sin archivo</span>
-                                )}
+                                <Link href={`/documents/${document.documentId}/edit`} className={styles.secondaryAction}>
+                                  Editar
+                                </Link>
+                                <DocumentFilePreview fileUrl={document.fileUrl} documentId={document.documentId} />
                               </div>
                             </td>
                           </tr>
@@ -284,28 +266,9 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
                 </div>
               )}
             </section>
+          </div>
 
-            <section className={styles.bottomGrid}>
-              <article className={styles.infoCard}>
-                <span className={styles.infoLabel}>Procesamiento documental</span>
-                <strong className={styles.infoValue}>{processedCount}</strong>
-                <p className={styles.infoCopy}>Elementos listos para alimentar el analisis del agente quirurgico.</p>
-              </article>
-
-              <article className={styles.infoCard}>
-                <span className={styles.infoLabel}>Pendientes</span>
-                <strong className={styles.infoValue}>{pendingCount}</strong>
-                <p className={styles.infoCopy}>Soportes que aun requieren revision o normalizacion administrativa.</p>
-              </article>
-
-              <article className={styles.featureCard}>
-                <div className={styles.featureContent}>
-                  <h4>Lectura documental centralizada</h4>
-                  <p>Esta vista consolida el texto extraido y facilita revisar si el expediente ya tiene soporte suficiente.</p>
-                </div>
-              </article>
-            </section>
-
+          <div className={styles.fullWidthFooter}>
             <AppFooter compact />
           </div>
         </main>

@@ -14,7 +14,7 @@ function escapeCsv(value: string | number) {
 
 export async function GET() {
   const cases = await listCases();
-  const evaluations = await Promise.all(cases.map((item) => evaluateSurgicalCase(item, { preferAI: true })));
+  const evaluations = await Promise.all(cases.map((item) => evaluateSurgicalCase(item)));
 
   const headers = [
     "case_id",
@@ -39,7 +39,7 @@ export async function GET() {
       item.case.diagnosis,
       item.decision.status,
       Math.round(item.extraction.confidence * 100),
-      item.extraction.source ?? "mock",
+      item.extraction.source ?? "rules",
       item.decision.missingDocuments.join(" | "),
     ]
       .map(escapeCsv)

@@ -1,12 +1,14 @@
 import { AppFooter } from "@/components/app-footer";
 import { AppHeader } from "@/components/app-header";
 import { AppSidebar } from "@/components/app-sidebar";
-import { CaseCreateForm } from "@/components/case-create-form";
 import styles from "@/components/entity-form.module.css";
+import { CaseCreateForm } from "@/features/cases/components/case-create-form";
+import { workspaceNavigationItems } from "@/lib/app-navigation";
 import { getDataSourceMode, listPolicies } from "@/lib/case-service";
 
 export default async function NewCasePage() {
   const policies = await listPolicies();
+  const sourceMode = getDataSourceMode();
 
   return (
     <div className={styles.page}>
@@ -14,39 +16,35 @@ export default async function NewCasePage() {
         <AppSidebar
           variant="dashboard"
           activeKey="casos"
-          items={[
-            { key: "dashboard", label: "Dashboard", href: "/dashboard" },
-            { key: "casos", label: "Casos", href: "/cases" },
-            { key: "polizas", label: "Polizas", href: "/policies" },
-            { key: "documentos", label: "Documentos", href: "/documents" },
-            { key: "config", label: "Configuracion", href: "/settings" },
-            { key: "auditoria", label: "Auditoria", href: "/audit" },
-          ]}
+          items={[...workspaceNavigationItems]}
           profileName="Darwin Valdiviezo"
           profileRole="Acceso administrador"
         />
 
         <main className={styles.main}>
-          <div className={styles.canvas}>
+          <div className={styles.fullWidthHeader}>
             <AppHeader
               variant="dashboard"
-              searchPlaceholder="Buscar poliza de referencia..."
-              searchTargetPath="/policies"
-              systemStatusLabel="Origen:"
-              systemStatusValue={getDataSourceMode() === "notion" ? "Notion activa" : "Modo mock"}
+              searchPlaceholder="Buscar casos, pacientes o polizas..."
+              searchTargetPath="/cases"
+              systemStatusLabel="Estado del sistema:"
+              systemStatusValue={sourceMode === "notion" ? "Notion activa" : "Notion no configurada"}
             />
+          </div>
 
-            <section className={styles.headerBlock}>
-              <h2 className={styles.title}>Nuevo caso</h2>
-              <p className={styles.subtitle}>
-                Crea un caso quirurgico real y guárdalo directamente en la base `Casos` de Notion.
-              </p>
-            </section>
+          <div className={styles.canvas}>
+            <AppHeader
+              title="Nuevo caso"
+              subtitle="Paso 1"
+              actions={[{ href: "/cases", label: "Volver a casos", variant: "secondary" }]}
+            />
 
             <section className={styles.card}>
               <CaseCreateForm policies={policies} />
             </section>
+          </div>
 
+          <div className={styles.fullWidthFooter}>
             <AppFooter compact />
           </div>
         </main>

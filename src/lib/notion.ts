@@ -15,6 +15,13 @@ const documentsDataSourceId = process.env.NOTION_DOCUMENTS_DATA_SOURCE_ID;
 
 let notionClient: Client | null = null;
 const resolvedDataSourceIds = new Map<string, string>();
+const NOTION_DIRECT_UPLOAD_LIMIT_BYTES = 20 * 1024 * 1024;
+
+type UploadedDocumentFile = {
+  bytes: Uint8Array;
+  filename: string;
+  contentType: string;
+};
 
 function getNotionClient(): Client {
   if (!notionToken) {
@@ -227,6 +234,166 @@ function createMultiSelectOptions(values: string[]) {
     .map((value) => ({ name: value.slice(0, 100) }));
 }
 
+function sanitizeFileName(filename: string, fallbackExtension = ".pdf") {
+  const normalized = filename.trim().replace(/[\\/:*?"<>|]+/g, "_");
+
+  if (!normalized) {
+    return `documento${fallbackExtension}`;
+  }
+
+  if (normalized.includes(".")) {
+    return normalized.slice(0, 180);
+  }
+
+  return `${normalized.slice(0, 176)}${fallbackExtension}`;
+}
+
+function inferExtensionFromContentType(contentType: string) {
+  if (contentType === "application/pdf") {
+    return ".pdf";
+  }
+
+  if (contentType === "text/plain") {
+    return ".txt";
+  }
+
+  if (contentType === "text/markdown") {
+    return ".md";
+  }
+
+  if (contentType === "application/json") {
+    return ".json";
+  }
+
+  if (contentType === "text/csv") {
+    return ".csv";
+  }
+
+  return ".bin";
+}
+
+function getCaptionContent(value: string) {
+  return [
+    {
+      type: "text" as const,
+      text: {
+        content: value.slice(0, 1900),
+      },
+    },
+  ];
+}
+
+function getNotionHostedUrlFromBlock(block: Record<string, unknown>): string {
+  const blockType = typeof block.type === "string" ? block.type : "";
+
+  if (blockType !== "file" && blockType !== "pdf") {
+    return "";
+  }
+
+  const payload = block[blockType];
+  if (!payload || typeof payload !== "object") {
+    return "";
+  }
+
+  const type = "type" in payload && typeof payload.type === "string" ? payload.type : "";
+
+  if (type === "file" && "file" in payload && payload.file && typeof payload.file === "object") {
+    const filePayload = payload.file as { url?: string };
+    return typeof filePayload.url === "string" ? filePayload.url : "";
+  }
+
+  if (type === "external" && "external" in payload && payload.external && typeof payload.external === "object") {
+    const externalPayload = payload.external as { url?: string };
+    return typeof externalPayload.url === "string" ? externalPayload.url : "";
+  }
+
+  return "";
+}
+
+async function waitForUploadedFile(fileUploadId: string): Promise<void> {
+  const notion = getNotionClient();
+
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const upload = await notion.fileUploads.retrieve({
+      file_upload_id: fileUploadId,
+    });
+
+    if (upload.status === "uploaded") {
+      return;
+    }
+
+    if (upload.status === "failed" || upload.status === "expired") {
+      throw new Error(`La carga del archivo en Notion termino con estado ${upload.status}.`);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
+  }
+
+  throw new Error("Notion no confirmo la carga del archivo dentro del tiempo esperado.");
+}
+
+async function updateDocumentAttachmentUrl(pageId: string, fileUrl: string) {
+  const notion = getNotionClient();
+
+  if (!fileUrl) {
+    return;
+  }
+
+  try {
+    await notion.pages.update({
+      page_id: pageId,
+      properties: {
+        archivo_url: {
+          url: fileUrl,
+        },
+      },
+    });
+  } catch (error) {
+    if (!(isValidationError(error) && error.message.includes("archivo_url"))) {
+      throw error;
+    }
+  }
+}
+
+async function enrichDocumentWithAttachmentUrl(document: CaseDocument): Promise<CaseDocument> {
+  if ((!document.notionPageId || document.fileUrl) && document.storage !== "notion") {
+    return document;
+  }
+
+  if (!document.notionPageId) {
+    return document;
+  }
+
+  const notion = getNotionClient();
+
+  try {
+    const response = await notion.blocks.children.list({
+      block_id: document.notionPageId,
+      page_size: 20,
+    });
+
+    for (const block of response.results) {
+      if (block.object !== "block") {
+        continue;
+      }
+
+      const liveUrl = getNotionHostedUrlFromBlock(block as Record<string, unknown>);
+
+      if (liveUrl) {
+        return {
+          ...document,
+          fileUrl: liveUrl,
+          storage: "notion",
+        };
+      }
+    }
+  } catch (error) {
+    console.error(`No se pudo resolver el adjunto en Notion para ${document.documentId}.`, error);
+  }
+
+  return document;
+}
+
 async function createPageInDataSource(args: Omit<CreatePageParameters, "parent"> & { dataSourceId: string }) {
   const notion = getNotionClient();
   const dataSourceId = await resolveDataSourceId(args.dataSourceId);
@@ -278,6 +445,7 @@ function mapDocumentPage(page: PageObjectResponse): CaseDocument {
     fileUrl: getUrl(page, "archivo_url"),
     documentStatus: getStatusName(page, "estado_documento") || "Pendiente",
     extractedText: getRichText(page, "texto_extraido"),
+    storage: getUrl(page, "archivo_url") ? "external" : undefined,
   };
 }
 
@@ -312,7 +480,8 @@ export async function queryDocumentsFromNotion(): Promise<CaseDocument[]> {
   }
 
   const response = await queryNotionCollection(documentsDataSourceId);
-  return response.results.filter(isPageObject).map(mapDocumentPage);
+  const documents = response.results.filter(isPageObject).map(mapDocumentPage);
+  return Promise.all(documents.map(enrichDocumentWithAttachmentUrl));
 }
 
 export async function createCaseInNotion(surgicalCase: SurgicalCase): Promise<SurgicalCase> {
@@ -474,6 +643,122 @@ export async function createDocumentInNotion(document: CaseDocument): Promise<Ca
   };
 }
 
+export async function updateDocumentInNotion(document: CaseDocument): Promise<CaseDocument> {
+  if (!document.notionPageId) {
+    throw new Error("El documento no tiene notionPageId para actualizarse.");
+  }
+
+  const notion = getNotionClient();
+  const baseProperties: UpdatePageParameters["properties"] = {
+    document_id: {
+      title: createTextContent(document.documentId),
+    },
+    case_id: {
+      rich_text: createTextContent(document.caseId),
+    },
+    tipo_documento: {
+      rich_text: createTextContent(document.documentType),
+    },
+    estado_documento: {
+      status: {
+        name: document.documentStatus,
+      },
+    },
+    texto_extraido: {
+      rich_text: createTextContent(document.extractedText),
+    },
+  };
+
+  try {
+    await notion.pages.update({
+      page_id: document.notionPageId,
+      properties: {
+        ...baseProperties,
+        archivo_url: {
+          url: document.fileUrl || null,
+        },
+      },
+    });
+  } catch (error) {
+    if (!(isValidationError(error) && error.message.includes("archivo_url"))) {
+      throw error;
+    }
+
+    await notion.pages.update({
+      page_id: document.notionPageId,
+      properties: baseProperties,
+    });
+  }
+
+  return document;
+}
+
+export async function attachFileToDocumentInNotion(
+  notionPageId: string,
+  uploadedFile: UploadedDocumentFile,
+  metadata: {
+    documentId: string;
+    documentType: string;
+  },
+): Promise<string> {
+  if (uploadedFile.bytes.byteLength > NOTION_DIRECT_UPLOAD_LIMIT_BYTES) {
+    throw new Error("Notion solo admite cargas directas de hasta 20 MB en este flujo.");
+  }
+
+  const notion = getNotionClient();
+  const inferredExtension = inferExtensionFromContentType(uploadedFile.contentType);
+  const filename = sanitizeFileName(uploadedFile.filename, inferredExtension);
+  const upload = await notion.fileUploads.create({
+    mode: "single_part",
+    filename,
+    content_type: uploadedFile.contentType || undefined,
+  });
+  const fileBuffer = uploadedFile.bytes.buffer.slice(
+    uploadedFile.bytes.byteOffset,
+    uploadedFile.bytes.byteOffset + uploadedFile.bytes.byteLength,
+  ) as ArrayBuffer;
+
+  await notion.fileUploads.send({
+    file_upload_id: upload.id,
+    file: {
+      data: new Blob([fileBuffer], {
+        type: uploadedFile.contentType || "application/octet-stream",
+      }),
+      filename,
+    },
+  });
+
+  await waitForUploadedFile(upload.id);
+
+  const isPdf = filename.toLowerCase().endsWith(".pdf");
+  const appended = await notion.blocks.children.append({
+    block_id: notionPageId,
+    children: [
+      {
+        object: "block",
+        type: isPdf ? "pdf" : "file",
+        [isPdf ? "pdf" : "file"]: {
+          type: "file_upload",
+          file_upload: {
+            id: upload.id,
+          },
+          caption: getCaptionContent(`${metadata.documentType} · ${metadata.documentId}`),
+        },
+      },
+    ],
+  } as never);
+
+  const results = "results" in appended && Array.isArray(appended.results) ? appended.results : [];
+  const firstBlock = results[0] as Record<string, unknown> | undefined;
+  const liveUrl = firstBlock ? getNotionHostedUrlFromBlock(firstBlock) : "";
+
+  if (liveUrl) {
+    await updateDocumentAttachmentUrl(notionPageId, liveUrl);
+  }
+
+  return liveUrl;
+}
+
 export async function updateCaseDecisionInNotion(
   notionPageId: string,
   decision: DecisionResult,
@@ -517,5 +802,14 @@ export async function updateCaseDecisionInNotion(
   await notion.pages.update({
     page_id: notionPageId,
     properties,
+  });
+}
+
+export async function archivePageInNotion(pageId: string): Promise<void> {
+  const notion = getNotionClient();
+
+  await notion.pages.update({
+    page_id: pageId,
+    in_trash: true,
   });
 }

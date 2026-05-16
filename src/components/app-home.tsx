@@ -69,7 +69,7 @@ export async function AppHome({ compact = false }: AppHomeProps) {
             <div className={styles.supportList}>
               <div className={styles.supportItem}>
                 <span>Fuente de datos</span>
-                <strong>{notionMode ? "Notion en vivo" : "Modo mock"}</strong>
+                <strong>{notionMode ? "Notion en vivo" : "Notion no configurado"}</strong>
               </div>
               <div className={styles.supportItem}>
                 <span>Procesamiento de casos</span>
@@ -147,8 +147,8 @@ export async function AppHome({ compact = false }: AppHomeProps) {
                     <strong>Pantalla clave de decision</strong>
                   </div>
                   <div className={styles.supportItem}>
-                    <span>Configuracion</span>
-                    <strong>Health check e integraciones</strong>
+                    <span>Documentos</span>
+                    <strong>Subida y lectura del expediente</strong>
                   </div>
                 </div>
               </article>

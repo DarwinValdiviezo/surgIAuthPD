@@ -106,6 +106,8 @@ export function CasesFilters({ insurerOptions, procedureOptions, initialValues, 
           onChange={(event) => updateParam("status", event.target.value)}
         >
           <option value="">Todos</option>
+          <option value="Nuevo">Nuevo</option>
+          <option value="En analisis">En analisis</option>
           <option value="Preaprobado">Preaprobado</option>
           <option value="Pendiente por documentos">Pendiente por documentos</option>
           <option value="Revision manual">Revision manual</option>

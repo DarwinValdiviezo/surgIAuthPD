@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server";
 import { getNotionSetupStatus } from "@/lib/case-service";
+import { getGeminiStatus } from "@/lib/gemini";
 import { queryCasesFromNotion, queryDocumentsFromNotion, queryPoliciesFromNotion } from "@/lib/notion";
 
 export async function GET() {
   const config = getNotionSetupStatus();
+  const gemini = getGeminiStatus();
 
   if (!config.configured) {
     return NextResponse.json({
       ok: false,
-      mode: "mock",
+      mode: "unconfigured",
       config,
-      message: "Notion aun no esta configurado. Se usaran datos mock hasta completar las variables de entorno.",
+      gemini,
+      message: "Notion aun no esta configurado.",
     });
   }
 
@@ -25,6 +28,7 @@ export async function GET() {
       ok: true,
       mode: "notion",
       config,
+      gemini,
       message: "La conexion con Notion esta lista.",
       counts: {
         cases: cases.length,
@@ -38,6 +42,7 @@ export async function GET() {
         ok: false,
         mode: "notion",
         config,
+        gemini,
         message: "La configuracion existe, pero Notion no pudo responder correctamente.",
         error: error instanceof Error ? error.message : "Error desconocido",
       },

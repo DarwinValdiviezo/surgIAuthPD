@@ -2,8 +2,9 @@ import Link from "next/link";
 import { AppFooter } from "@/components/app-footer";
 import { AppHeader } from "@/components/app-header";
 import { AppSidebar } from "@/components/app-sidebar";
-import { PoliciesFilters } from "@/components/policies-filters";
-import { getDataSourceMode, listCases, listPolicies } from "@/lib/case-service";
+import { PoliciesFilters } from "@/features/policies/components/policies-filters";
+import { workspaceNavigationItems } from "@/lib/app-navigation";
+import { getDataSourceMode, listPolicies } from "@/lib/case-service";
 import styles from "./policies.module.css";
 
 const PAGE_SIZE = 8;
@@ -58,7 +59,7 @@ type PoliciesPageProps = {
 
 export default async function PoliciesPage({ searchParams }: PoliciesPageProps) {
   const resolvedSearchParams = (await searchParams) ?? {};
-  const [policies, cases] = await Promise.all([listPolicies(), listCases()]);
+  const policies = await listPolicies();
 
   const q = typeof resolvedSearchParams.q === "string" ? resolvedSearchParams.q.trim() : "";
   const insurer = typeof resolvedSearchParams.insurer === "string" ? resolvedSearchParams.insurer : "";
@@ -91,14 +92,6 @@ export default async function PoliciesPage({ searchParams }: PoliciesPageProps) 
   const startIndex = totalPolicies === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const endIndex = Math.min(currentPage * PAGE_SIZE, totalPolicies);
 
-  const insurersCount = new Set(policies.map((policy) => policy.insurerName)).size;
-  const topTierPolicies = policies.filter((policy) => policy.waitingPeriodDays <= 30).length;
-  const caseMatches = cases.filter((surgicalCase) => policies.some((policy) => policy.policyId === surgicalCase.policyId)).length;
-  const averageWaitingPeriod =
-    policies.length > 0
-      ? Math.round(policies.reduce((accumulator, policy) => accumulator + policy.waitingPeriodDays, 0) / policies.length)
-      : 0;
-
   const insurerOptions = Array.from(new Set(policies.map((policy) => policy.insurerName))).sort();
   const procedureOptions = Array.from(new Set(policies.flatMap((policy) => policy.coveredProcedures))).sort();
 
@@ -108,27 +101,23 @@ export default async function PoliciesPage({ searchParams }: PoliciesPageProps) 
         <AppSidebar
           variant="dashboard"
           activeKey="polizas"
-          items={[
-            { key: "dashboard", label: "Dashboard", href: "/dashboard" },
-            { key: "casos", label: "Casos", href: "/cases" },
-            { key: "polizas", label: "Polizas", href: "/policies" },
-            { key: "documentos", label: "Documentos", href: "/documents" },
-            { key: "config", label: "Configuracion", href: "/settings" },
-            { key: "auditoria", label: "Auditoria", href: "/audit" },
-          ]}
+          items={[...workspaceNavigationItems]}
           profileName="Darwin Valdiviezo"
           profileRole="Acceso administrador"
         />
 
         <main className={styles.main}>
-          <div className={styles.canvas}>
+          <div className={styles.fullWidthHeader}>
             <AppHeader
               variant="dashboard"
               searchPlaceholder="Buscar poliza por ID o aseguradora..."
               searchTargetPath="/policies"
               systemStatusLabel="Fuente de datos:"
-              systemStatusValue={getDataSourceMode() === "notion" ? "Notion activa" : "Modo mock"}
+              systemStatusValue={getDataSourceMode() === "notion" ? "Notion activa" : "Notion no configurada"}
             />
+          </div>
+
+          <div className={styles.canvas}>
 
             <section className={styles.headerBlock}>
               <div>
@@ -272,36 +261,9 @@ export default async function PoliciesPage({ searchParams }: PoliciesPageProps) 
               </div>
             </section>
 
-            <section className={styles.statsGrid}>
-              <article className={styles.statCard}>
-                <div className={styles.statHeader}>
-                  <span className={styles.statLabel}>Polizas vinculadas</span>
-                  <span className={styles.statAccent}>{caseMatches} casos</span>
-                </div>
-                <div className={styles.statValue}>{policies.length}</div>
-                <p className={styles.statCopy}>Catalogo tecnico total disponible para evaluacion de cobertura.</p>
-              </article>
+          </div>
 
-              <article className={styles.statCard}>
-                <div className={styles.statHeader}>
-                  <span className={styles.statLabel}>Polizas top-tier</span>
-                  <span className={styles.statAccentMuted}>{insurersCount} aseguradoras</span>
-                </div>
-                <div className={styles.statValue}>{topTierPolicies}</div>
-                <p className={styles.statCopy}>Coberturas con carencia corta y respuesta operativa preferente.</p>
-              </article>
-
-              <article className={styles.reportCard}>
-                <div className={styles.reportContent}>
-                  <h4>Lectura tecnica del catalogo</h4>
-                  <p>Carencia promedio actual: {averageWaitingPeriod} dias.</p>
-                  <Link href="/audit" className={styles.reportButton}>
-                    Ir a auditoria
-                  </Link>
-                </div>
-              </article>
-            </section>
-
+          <div className={styles.fullWidthFooter}>
             <AppFooter compact />
           </div>
         </main>

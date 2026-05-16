@@ -51,13 +51,6 @@ export function AppHeader({
           </Suspense>
         </div>
         <div className={styles.dashboardHeaderRight}>
-          <Link href="/audit" className={styles.dashboardUtilityButton} aria-label="Notificaciones">
-            N
-          </Link>
-          <Link href="/settings" className={styles.dashboardUtilityButton} aria-label="Ayuda">
-            ?
-          </Link>
-          <div className={styles.dashboardDivider} />
           <div className={styles.dashboardSystemStatus}>
             <span className={styles.dashboardSystemLabel}>{systemStatusLabel}</span>
             <span className={styles.dashboardSystemPill}>

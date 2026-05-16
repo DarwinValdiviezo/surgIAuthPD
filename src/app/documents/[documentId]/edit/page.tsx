@@ -1,20 +1,26 @@
+import { notFound } from "next/navigation";
 import { AppFooter } from "@/components/app-footer";
 import { AppHeader } from "@/components/app-header";
 import { AppSidebar } from "@/components/app-sidebar";
 import styles from "@/components/entity-form.module.css";
 import { DocumentCreateForm } from "@/features/documents/components/document-create-form";
 import { workspaceNavigationItems } from "@/lib/app-navigation";
-import { getDataSourceMode, listCases, listPolicies } from "@/lib/case-service";
+import { findDocumentById, getDataSourceMode, listCases, listPolicies } from "@/lib/case-service";
 
-type NewDocumentPageProps = {
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+type EditDocumentPageProps = {
+  params: Promise<{
+    documentId: string;
+  }>;
 };
 
-export default async function NewDocumentPage({ searchParams }: NewDocumentPageProps) {
-  const resolvedSearchParams = (await searchParams) ?? {};
-  const [cases, policies] = await Promise.all([listCases(), listPolicies()]);
-  const initialCaseId = typeof resolvedSearchParams.caseId === "string" ? resolvedSearchParams.caseId : "";
+export default async function EditDocumentPage({ params }: EditDocumentPageProps) {
+  const { documentId } = await params;
+  const [cases, policies, document] = await Promise.all([listCases(), listPolicies(), findDocumentById(documentId)]);
   const sourceMode = getDataSourceMode();
+
+  if (!document) {
+    notFound();
+  }
 
   return (
     <div className={styles.page}>
@@ -40,13 +46,13 @@ export default async function NewDocumentPage({ searchParams }: NewDocumentPageP
 
           <div className={styles.canvas}>
             <AppHeader
-              title="Nuevo documento"
+              title={`Editar documento ${document.documentId}`}
               subtitle="Paso 2"
-              actions={[{ href: "/documents", label: "Volver a documentos", variant: "secondary" }]}
+              actions={[{ href: `/cases/${document.caseId}`, label: "Volver al caso", variant: "secondary" }]}
             />
 
             <section className={styles.card}>
-              <DocumentCreateForm cases={cases} policies={policies} initialCaseId={initialCaseId} />
+              <DocumentCreateForm cases={cases} policies={policies} initialDocument={document} mode="edit" />
             </section>
           </div>
 

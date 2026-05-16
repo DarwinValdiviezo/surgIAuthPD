@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
-import styles from "./entity-form.module.css";
+import styles from "@/components/entity-form.module.css";
 
 export function PolicyCreateForm() {
   const router = useRouter();
